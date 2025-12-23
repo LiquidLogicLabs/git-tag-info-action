@@ -26616,7 +26616,7 @@ function parseGiteaUrl(url, baseUrl) {
     // Remove base URL to get path
     urlToParse = url.replace(/^https?:\/\//, '').replace(/^git@/, '');
     const baseUrlWithoutProtocol = baseUrl.replace(/^https?:\/\//, '');
-    urlToParse = urlToParse.replace(baseUrlWithoutProtocol, '').replace(/^:/, '');
+    urlToParse = urlToParse.replace(baseUrlWithoutProtocol, '').replace(/^:/, '').replace(/^\//, '');
     // Extract owner/repo from path
     const pathMatch = urlToParse.match(/^([^\/]+)\/([^\/]+?)(?:\.git)?(?:\/.*)?$/);
     if (pathMatch) {
