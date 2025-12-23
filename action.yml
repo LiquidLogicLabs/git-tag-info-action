@@ -1,0 +1,47 @@
+name: 'Get Tag Info'
+description: 'Get tag information from local and remote repositories (GitHub, Gitea, Bitbucket)'
+author: ''
+inputs:
+  tag_name:
+    description: 'Tag name or "latest" to get the most recent tag'
+    required: true
+  repository:
+    description: 'Repository URL or local path. Auto-detects: URLs (http://, https://, git@) → Remote repository, Paths → Local repository. Examples: https://github.com/owner/repo, ./my-repo, /path/to/repo'
+    required: false
+  platform:
+    description: 'Platform type (github/gitea/bitbucket) for separate input mode'
+    required: false
+  owner:
+    description: 'Repository owner (for separate input mode)'
+    required: false
+  repo:
+    description: 'Repository name (for separate input mode)'
+    required: false
+  base_url:
+    description: 'Custom base URL for self-hosted instances (e.g., https://gitea.example.com)'
+    required: false
+  token:
+    description: 'Authentication token (works for all platforms)'
+    required: false
+outputs:
+  exists:
+    description: 'Boolean indicating if tag exists'
+  tag_name:
+    description: 'Tag name'
+  tag_sha:
+    description: 'Tag SHA'
+  tag_type:
+    description: 'Tag type (commit/annotated)'
+  commit_sha:
+    description: 'Commit SHA'
+  tag_message:
+    description: 'Tag message'
+  verified:
+    description: 'Whether tag is verified (if applicable)'
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
+branding:
+  icon: 'tag'
+  color: 'blue'
+
