@@ -37,7 +37,19 @@ Get tag information from local and remote repositories (GitHub, Gitea, Bitbucket
   with:
     tag_name: v1.0.0
     repository: https://github.com/owner/repo
-    token: ${{ secrets.GITHUB_TOKEN }}
+    # token is optional - automatically uses GITHUB_TOKEN if not provided
+```
+
+Or with a custom token:
+
+```yaml
+- name: Get tag info
+  id: tag-info
+  uses: your-org/git-tag-info-action@v1
+  with:
+    tag_name: v1.0.0
+    repository: https://github.com/owner/repo
+    token: ${{ secrets.CUSTOM_TOKEN }}  # Optional: for cross-repo access or higher rate limits
 ```
 
 ### GitHub Repository (Separate Inputs)
@@ -126,7 +138,7 @@ Get tag information from local and remote repositories (GitHub, Gitea, Bitbucket
 | `owner` | Repository owner (for separate input mode) | No | - |
 | `repo` | Repository name (for separate input mode) | No | - |
 | `base_url` | Custom base URL for self-hosted instances (e.g., https://gitea.example.com) | No | - |
-| `token` | Authentication token (works for all platforms) | No | - |
+| `token` | Custom Personal Access Token (works for all platforms). If not provided, automatically falls back to `GITHUB_TOKEN` environment variable when available (e.g., in GitHub Actions) | No | - |
 
 ## Outputs
 
@@ -139,6 +151,134 @@ Get tag information from local and remote repositories (GitHub, Gitea, Bitbucket
 | `commit_sha` | Commit SHA |
 | `tag_message` | Tag message |
 | `verified` | Whether tag is verified (if applicable) |
+
+## Workflow Examples
+
+### Using Default GITHUB_TOKEN (No Token Input Required)
+
+```yaml
+name: Get Tag Info
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  get-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Get tag info
+        id: tag-info
+        uses: LiquidLogicLabs/git-tag-info-action@v1
+        with:
+          tag_name: latest
+          repository: https://github.com/owner/repo
+          # No token needed - automatically uses GITHUB_TOKEN
+
+      - name: Display tag
+        run: echo "Latest tag: ${{ steps.tag-info.outputs.tag_name }}"
+```
+
+### Using Custom Personal Access Token
+
+For cross-repository access or higher rate limits:
+
+```yaml
+name: Get Tag Info from External Repo
+
+on:
+  workflow_dispatch:
+
+jobs:
+  get-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get tag info from external repository
+        id: tag-info
+        uses: LiquidLogicLabs/git-tag-info-action@v1
+        with:
+          tag_name: latest
+          repository: https://github.com/other-org/other-repo
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}  # Custom PAT with access to other-org
+
+      - name: Display tag
+        run: echo "Latest tag: ${{ steps.tag-info.outputs.tag_name }}"
+```
+
+### Using Custom Token for Private Repositories
+
+```yaml
+name: Get Tag from Private Repo
+
+on:
+  workflow_dispatch:
+
+jobs:
+  get-tag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get tag info from private repository
+        id: tag-info
+        uses: LiquidLogicLabs/git-tag-info-action@v1
+        with:
+          tag_name: v1.0.0
+          repository: https://github.com/private-org/private-repo
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}  # Token with access to private repo
+
+      - name: Use tag info
+        run: |
+          echo "Tag: ${{ steps.tag-info.outputs.tag_name }}"
+          echo "SHA: ${{ steps.tag-info.outputs.tag_sha }}"
+```
+
+### Complete Workflow with Multiple Token Scenarios
+
+```yaml
+name: Multi-Repository Tag Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-tags:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      # Current repo - uses default GITHUB_TOKEN
+      - name: Get tag from current repo
+        id: current-repo
+        uses: LiquidLogicLabs/git-tag-info-action@v1
+        with:
+          tag_name: latest
+          # No token - uses GITHUB_TOKEN automatically
+
+      # External public repo - uses default GITHUB_TOKEN
+      - name: Get tag from external public repo
+        id: external-public
+        uses: LiquidLogicLabs/git-tag-info-action@v1
+        with:
+          tag_name: latest
+          repository: https://github.com/actions/checkout
+          # No token needed for public repos
+
+      # External private repo - requires custom token
+      - name: Get tag from external private repo
+        id: external-private
+        uses: LiquidLogicLabs/git-tag-info-action@v1
+        with:
+          tag_name: latest
+          repository: https://github.com/private-org/private-repo
+          token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+
+      - name: Summary
+        run: |
+          echo "Current repo latest: ${{ steps.current-repo.outputs.tag_name }}"
+          echo "External public latest: ${{ steps.external-public.outputs.tag_name }}"
+          echo "External private latest: ${{ steps.external-private.outputs.tag_name }}"
+```
 
 ## Latest Tag Resolution
 
@@ -165,11 +305,16 @@ Examples:
 
 For remote repositories, you may need to provide an authentication token:
 
-- **GitHub**: Use `GITHUB_TOKEN` or a Personal Access Token
-- **Gitea**: Use a Gitea access token
-- **Bitbucket**: Use an App Password or access token
+- **GitHub**: 
+  - If `token` input is not provided, the action automatically uses `GITHUB_TOKEN` environment variable (available in GitHub Actions)
+  - You can provide a custom Personal Access Token via the `token` input for:
+    - Cross-repository access (accessing repos outside the current workflow)
+    - Higher API rate limits
+    - Accessing private repositories
+- **Gitea**: Use a Gitea access token (required via `token` input)
+- **Bitbucket**: Use an App Password or access token (required via `token` input)
 
-The token is automatically masked in logs for security.
+**Note**: The token is automatically masked in logs for security. In GitHub Actions, you can omit the `token` input to automatically use `${{ secrets.GITHUB_TOKEN }}`.
 
 ## Security Considerations
 

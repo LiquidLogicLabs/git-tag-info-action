@@ -73,7 +73,8 @@ async function run(): Promise<void> {
     const owner = core.getInput('owner');
     const repo = core.getInput('repo');
     const baseUrl = core.getInput('base_url');
-    const token = core.getInput('token');
+    // Fallback to GITHUB_TOKEN if custom token is not provided
+    const token = core.getInput('token') || process.env.GITHUB_TOKEN;
 
     // Mask token in logs
     if (token) {

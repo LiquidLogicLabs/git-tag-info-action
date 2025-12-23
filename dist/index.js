@@ -26464,7 +26464,8 @@ async function run() {
         const owner = core.getInput('owner');
         const repo = core.getInput('repo');
         const baseUrl = core.getInput('base_url');
-        const token = core.getInput('token');
+        // Fallback to GITHUB_TOKEN if custom token is not provided
+        const token = core.getInput('token') || process.env.GITHUB_TOKEN;
         // Mask token in logs
         if (token) {
             core.setSecret(token);
@@ -26667,6 +26668,8 @@ function detectPlatformFromUrl(url) {
  * Build repository configuration from inputs
  */
 function detectRepository(repository, platform, owner, repo, baseUrl, token) {
+    // Apply fallback to GITHUB_TOKEN if token is not provided
+    const finalToken = token || process.env.GITHUB_TOKEN;
     // If separate inputs are provided, use them
     if (platform && owner && repo) {
         const platformEnum = platform.toLowerCase();
@@ -26679,7 +26682,7 @@ function detectRepository(repository, platform, owner, repo, baseUrl, token) {
             owner,
             repo,
             baseUrl: baseUrl || (platformEnum === types_1.Platform.GITEA ? undefined : undefined),
-            token,
+            token: finalToken,
         };
     }
     // If repository input is provided
@@ -26697,7 +26700,7 @@ function detectRepository(repository, platform, owner, repo, baseUrl, token) {
                     platform: types_1.Platform.GITHUB,
                     owner: parsed.owner,
                     repo: parsed.repo,
-                    token,
+                    token: finalToken,
                 };
             }
             if (detectedPlatform === types_1.Platform.BITBUCKET) {
@@ -26710,7 +26713,7 @@ function detectRepository(repository, platform, owner, repo, baseUrl, token) {
                     platform: types_1.Platform.BITBUCKET,
                     owner: parsed.owner,
                     repo: parsed.repo,
-                    token,
+                    token: finalToken,
                 };
             }
             // Gitea (default for unknown URLs or explicit Gitea)
@@ -26724,7 +26727,7 @@ function detectRepository(repository, platform, owner, repo, baseUrl, token) {
                 owner: parsed.owner,
                 repo: parsed.repo,
                 baseUrl: parsed.baseUrl,
-                token,
+                token: finalToken,
             };
         }
         else {
@@ -26747,7 +26750,7 @@ function detectRepository(repository, platform, owner, repo, baseUrl, token) {
             platform: types_1.Platform.GITHUB,
             owner,
             repo,
-            token: token || process.env.GITHUB_TOKEN,
+            token: finalToken,
         };
     }
     throw new Error('Repository not specified. Provide either repository (URL or path), or platform/owner/repo inputs, or run in GitHub Actions context.');

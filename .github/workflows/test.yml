@@ -29,12 +29,60 @@ jobs:
         run: npm test
         continue-on-error: true  # Optional: don't fail if tests are missing
 
-      # Optional: Integration tests
-      - name: Test action with different scenarios
-        run: |
-          node dist/index.js || true
-        env:
-          INPUT_TAG_NAME: latest
-          INPUT_REPOSITORY: https://github.com/actions/checkout
+      # Integration tests - Test the action itself
+      - name: Test action - Default GITHUB_TOKEN (no token input)
+        id: test-default-token
+        uses: ./
+        with:
+          tag_name: latest
+          repository: https://github.com/actions/checkout
+          # No token provided - should use GITHUB_TOKEN automatically
         continue-on-error: true
+
+      - name: Test action - Explicit GITHUB_TOKEN
+        id: test-explicit-token
+        uses: ./
+        with:
+          tag_name: latest
+          repository: https://github.com/actions/checkout
+          token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
+      - name: Test action - Custom token (if available)
+        id: test-custom-token
+        uses: ./
+        with:
+          tag_name: latest
+          repository: https://github.com/actions/checkout
+          token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
+        continue-on-error: true
+        # Note: This test will be skipped if CUSTOM_GITHUB_TOKEN secret is not configured
+        # To enable this test, add CUSTOM_GITHUB_TOKEN to repository secrets
+
+      - name: Integration test summary
+        if: always()
+        run: |
+          echo "## Integration Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.test-default-token.outcome }}" == "success" ]; then
+            echo "✅ Default token test: PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "  - Tag: ${{ steps.test-default-token.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Default token test: FAILED (may be rate limited)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.test-explicit-token.outcome }}" == "success" ]; then
+            echo "✅ Explicit token test: PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "  - Tag: ${{ steps.test-explicit-token.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Explicit token test: FAILED (may be rate limited)" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.test-custom-token.outcome }}" == "success" ]; then
+            echo "✅ Custom token test: PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "  - Tag: ${{ steps.test-custom-token.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Custom token test: FAILED or not configured" >> $GITHUB_STEP_SUMMARY
+            echo "  - To test custom tokens, add CUSTOM_GITHUB_TOKEN to repository secrets" >> $GITHUB_STEP_SUMMARY
+          fi
 
