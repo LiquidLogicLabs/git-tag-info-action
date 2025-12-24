@@ -59,14 +59,14 @@ async function getAllTagsFromRepo(config) {
         }
         switch (config.platform) {
             case types_1.Platform.GITHUB:
-                return await (0, github_client_1.getAllTags)(config.owner, config.repo, config.token);
+                return await (0, github_client_1.getAllTags)(config.owner, config.repo, config.token, config.ignoreCertErrors);
             case types_1.Platform.GITEA:
                 if (!config.baseUrl) {
                     throw new Error('Gitea base URL is required');
                 }
-                return await (0, gitea_client_1.getAllTags)(config.owner, config.repo, config.baseUrl, config.token);
+                return await (0, gitea_client_1.getAllTags)(config.owner, config.repo, config.baseUrl, config.token, config.ignoreCertErrors);
             case types_1.Platform.BITBUCKET:
-                return await (0, bitbucket_client_1.getAllTags)(config.owner, config.repo, config.token);
+                return await (0, bitbucket_client_1.getAllTags)(config.owner, config.repo, config.token, config.ignoreCertErrors);
             default:
                 throw new Error(`Unsupported platform: ${config.platform}`);
         }

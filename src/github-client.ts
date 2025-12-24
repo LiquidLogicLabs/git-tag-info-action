@@ -7,7 +7,8 @@ import { TagInfo, TagType, HttpResponse } from './types';
 function httpRequest(
   url: string,
   token?: string,
-  method: string = 'GET'
+  method: string = 'GET',
+  ignoreCertErrors: boolean = false
 ): Promise<HttpResponse> {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);
@@ -27,6 +28,11 @@ function httpRequest(
       method,
       headers,
     };
+
+    // Ignore certificate errors if requested
+    if (ignoreCertErrors) {
+      options.rejectUnauthorized = false;
+    }
 
     const req = https.request(options, (res) => {
       let body = '';
@@ -59,13 +65,14 @@ export async function getTagInfo(
   tagName: string,
   owner: string,
   repo: string,
-  token?: string
+  token?: string,
+  ignoreCertErrors: boolean = false
 ): Promise<TagInfo> {
   // GitHub API endpoint for tag refs
   const url = `https://api.github.com/repos/${owner}/${repo}/git/refs/tags/${tagName}`;
 
   try {
-    const response = await httpRequest(url, token);
+    const response = await httpRequest(url, token, 'GET', ignoreCertErrors);
 
     if (response.statusCode === 404) {
       return {
@@ -100,7 +107,7 @@ export async function getTagInfo(
     if (objectType === 'tag') {
       // Fetch the tag object
       const tagUrl = `https://api.github.com/repos/${owner}/${repo}/git/tags/${objectSha}`;
-      const tagResponse = await httpRequest(tagUrl, token);
+      const tagResponse = await httpRequest(tagUrl, token, 'GET', ignoreCertErrors);
 
       if (tagResponse.statusCode === 200) {
         const tagData = JSON.parse(tagResponse.body);
@@ -134,7 +141,8 @@ export async function getTagInfo(
 export async function getAllTags(
   owner: string,
   repo: string,
-  token?: string
+  token?: string,
+  ignoreCertErrors: boolean = false
 ): Promise<Array<{ name: string; date: string }>> {
   const url = `https://api.github.com/repos/${owner}/${repo}/git/refs/tags?per_page=100`;
 
@@ -145,7 +153,7 @@ export async function getAllTags(
 
     while (hasMore) {
       const pageUrl = `${url}&page=${page}`;
-      const response = await httpRequest(pageUrl, token);
+      const response = await httpRequest(pageUrl, token, 'GET', ignoreCertErrors);
 
       if (response.statusCode !== 200) {
         throw new Error(
@@ -170,13 +178,13 @@ export async function getAllTags(
           if (ref.object?.type === 'tag') {
             // For annotated tags, get the commit SHA from the tag object
             const tagUrl = `https://api.github.com/repos/${owner}/${repo}/git/tags/${objectSha}`;
-            const tagResponse = await httpRequest(tagUrl, token);
+            const tagResponse = await httpRequest(tagUrl, token, 'GET', ignoreCertErrors);
             if (tagResponse.statusCode === 200) {
               const tagData = JSON.parse(tagResponse.body);
               const commitSha = tagData.object?.sha || '';
               if (commitSha) {
                 const commitUrl = `https://api.github.com/repos/${owner}/${repo}/git/commits/${commitSha}`;
-                const commitResponse = await httpRequest(commitUrl, token);
+                const commitResponse = await httpRequest(commitUrl, token, 'GET', ignoreCertErrors);
                 if (commitResponse.statusCode === 200) {
                   const commitData = JSON.parse(commitResponse.body);
                   date = commitData.committer?.date || '';
@@ -186,7 +194,7 @@ export async function getAllTags(
           } else {
             // For lightweight tags, get commit date directly
             const commitUrl = `https://api.github.com/repos/${owner}/${repo}/git/commits/${objectSha}`;
-            const commitResponse = await httpRequest(commitUrl, token);
+            const commitResponse = await httpRequest(commitUrl, token, 'GET', ignoreCertErrors);
             if (commitResponse.statusCode === 200) {
               const commitData = JSON.parse(commitResponse.body);
               date = commitData.committer?.date || '';

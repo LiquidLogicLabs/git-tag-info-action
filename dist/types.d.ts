@@ -36,6 +36,7 @@ export interface RepoConfig {
     baseUrl?: string;
     path?: string;
     token?: string;
+    ignoreCertErrors?: boolean;
 }
 /**
  * HTTP response structure for API calls

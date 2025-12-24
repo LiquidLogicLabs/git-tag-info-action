@@ -8,7 +8,8 @@ import { TagInfo, TagType, HttpResponse } from './types';
 function httpRequest(
   url: string,
   token?: string,
-  method: string = 'GET'
+  method: string = 'GET',
+  ignoreCertErrors: boolean = false
 ): Promise<HttpResponse> {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);
@@ -31,6 +32,11 @@ function httpRequest(
       method,
       headers,
     };
+
+    // Ignore certificate errors if requested (HTTPS only)
+    if (isHttps && ignoreCertErrors) {
+      (options as https.RequestOptions).rejectUnauthorized = false;
+    }
 
     const req = client.request(options, (res) => {
       let body = '';
@@ -64,14 +70,15 @@ export async function getTagInfo(
   owner: string,
   repo: string,
   baseUrl: string,
-  token?: string
+  token?: string,
+  ignoreCertErrors: boolean = false
 ): Promise<TagInfo> {
   // Gitea API endpoint for tag refs
   const apiBase = baseUrl.replace(/\/$/, '');
   const url = `${apiBase}/api/v1/repos/${owner}/${repo}/git/refs/tags/${tagName}`;
 
   try {
-    const response = await httpRequest(url, token);
+    const response = await httpRequest(url, token, 'GET', ignoreCertErrors);
 
     if (response.statusCode === 404) {
       return {
@@ -106,7 +113,7 @@ export async function getTagInfo(
     if (objectType === 'tag') {
       // Fetch the tag object
       const tagUrl = `${apiBase}/api/v1/repos/${owner}/${repo}/git/tags/${objectSha}`;
-      const tagResponse = await httpRequest(tagUrl, token);
+      const tagResponse = await httpRequest(tagUrl, token, 'GET', ignoreCertErrors);
 
       if (tagResponse.statusCode === 200) {
         const tagData = JSON.parse(tagResponse.body);
@@ -142,7 +149,8 @@ export async function getAllTags(
   owner: string,
   repo: string,
   baseUrl: string,
-  token?: string
+  token?: string,
+  ignoreCertErrors: boolean = false
 ): Promise<Array<{ name: string; date: string }>> {
   const apiBase = baseUrl.replace(/\/$/, '');
   const url = `${apiBase}/api/v1/repos/${owner}/${repo}/tags?limit=100`;
@@ -154,7 +162,7 @@ export async function getAllTags(
 
     while (hasMore) {
       const pageUrl = `${url}&page=${page}`;
-      const response = await httpRequest(pageUrl, token);
+      const response = await httpRequest(pageUrl, token, 'GET', ignoreCertErrors);
 
       if (response.statusCode !== 200) {
         throw new Error(

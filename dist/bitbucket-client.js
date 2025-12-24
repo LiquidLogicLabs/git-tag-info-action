@@ -40,7 +40,7 @@ const types_1 = require("./types");
 /**
  * Make HTTP request
  */
-function httpRequest(url, token, method = 'GET') {
+function httpRequest(url, token, method = 'GET', ignoreCertErrors = false) {
     return new Promise((resolve, reject) => {
         const urlObj = new URL(url);
         const headers = {
@@ -59,6 +59,10 @@ function httpRequest(url, token, method = 'GET') {
             method,
             headers,
         };
+        // Ignore certificate errors if requested
+        if (ignoreCertErrors) {
+            options.rejectUnauthorized = false;
+        }
         const req = https.request(options, (res) => {
             let body = '';
             res.on('data', (chunk) => {
@@ -81,11 +85,11 @@ function httpRequest(url, token, method = 'GET') {
 /**
  * Get tag information from Bitbucket API
  */
-async function getTagInfo(tagName, owner, repo, token) {
+async function getTagInfo(tagName, owner, repo, token, ignoreCertErrors = false) {
     // Bitbucket API endpoint for tag refs
     const url = `https://api.bitbucket.org/2.0/repositories/${owner}/${repo}/refs/tags/${tagName}`;
     try {
-        const response = await httpRequest(url, token);
+        const response = await httpRequest(url, token, 'GET', ignoreCertErrors);
         if (response.statusCode === 404) {
             return {
                 exists: false,
@@ -127,13 +131,13 @@ async function getTagInfo(tagName, owner, repo, token) {
 /**
  * Get all tags from Bitbucket repository
  */
-async function getAllTags(owner, repo, token) {
+async function getAllTags(owner, repo, token, ignoreCertErrors = false) {
     const url = `https://api.bitbucket.org/2.0/repositories/${owner}/${repo}/refs/tags?pagelen=100`;
     try {
         const allTags = [];
         let nextUrl = url;
         while (nextUrl) {
-            const response = await httpRequest(nextUrl, token);
+            const response = await httpRequest(nextUrl, token, 'GET', ignoreCertErrors);
             if (response.statusCode !== 200) {
                 throw new Error(`Bitbucket API error: ${response.statusCode} - ${response.body}`);
             }

@@ -25689,7 +25689,7 @@ const types_1 = __nccwpck_require__(8522);
 /**
  * Make HTTP request
  */
-function httpRequest(url, token, method = 'GET') {
+function httpRequest(url, token, method = 'GET', ignoreCertErrors = false) {
     return new Promise((resolve, reject) => {
         const urlObj = new URL(url);
         const headers = {
@@ -25708,6 +25708,10 @@ function httpRequest(url, token, method = 'GET') {
             method,
             headers,
         };
+        // Ignore certificate errors if requested
+        if (ignoreCertErrors) {
+            options.rejectUnauthorized = false;
+        }
         const req = https.request(options, (res) => {
             let body = '';
             res.on('data', (chunk) => {
@@ -25730,11 +25734,11 @@ function httpRequest(url, token, method = 'GET') {
 /**
  * Get tag information from Bitbucket API
  */
-async function getTagInfo(tagName, owner, repo, token) {
+async function getTagInfo(tagName, owner, repo, token, ignoreCertErrors = false) {
     // Bitbucket API endpoint for tag refs
     const url = `https://api.bitbucket.org/2.0/repositories/${owner}/${repo}/refs/tags/${tagName}`;
     try {
-        const response = await httpRequest(url, token);
+        const response = await httpRequest(url, token, 'GET', ignoreCertErrors);
         if (response.statusCode === 404) {
             return {
                 exists: false,
@@ -25776,13 +25780,13 @@ async function getTagInfo(tagName, owner, repo, token) {
 /**
  * Get all tags from Bitbucket repository
  */
-async function getAllTags(owner, repo, token) {
+async function getAllTags(owner, repo, token, ignoreCertErrors = false) {
     const url = `https://api.bitbucket.org/2.0/repositories/${owner}/${repo}/refs/tags?pagelen=100`;
     try {
         const allTags = [];
         let nextUrl = url;
         while (nextUrl) {
-            const response = await httpRequest(nextUrl, token);
+            const response = await httpRequest(nextUrl, token, 'GET', ignoreCertErrors);
             if (response.statusCode !== 200) {
                 throw new Error(`Bitbucket API error: ${response.statusCode} - ${response.body}`);
             }
@@ -26005,7 +26009,7 @@ const types_1 = __nccwpck_require__(8522);
 /**
  * Make HTTP request
  */
-function httpRequest(url, token, method = 'GET') {
+function httpRequest(url, token, method = 'GET', ignoreCertErrors = false) {
     return new Promise((resolve, reject) => {
         const urlObj = new URL(url);
         const isHttps = urlObj.protocol === 'https:';
@@ -26024,6 +26028,10 @@ function httpRequest(url, token, method = 'GET') {
             method,
             headers,
         };
+        // Ignore certificate errors if requested (HTTPS only)
+        if (isHttps && ignoreCertErrors) {
+            options.rejectUnauthorized = false;
+        }
         const req = client.request(options, (res) => {
             let body = '';
             res.on('data', (chunk) => {
@@ -26046,12 +26054,12 @@ function httpRequest(url, token, method = 'GET') {
 /**
  * Get tag information from Gitea API
  */
-async function getTagInfo(tagName, owner, repo, baseUrl, token) {
+async function getTagInfo(tagName, owner, repo, baseUrl, token, ignoreCertErrors = false) {
     // Gitea API endpoint for tag refs
     const apiBase = baseUrl.replace(/\/$/, '');
     const url = `${apiBase}/api/v1/repos/${owner}/${repo}/git/refs/tags/${tagName}`;
     try {
-        const response = await httpRequest(url, token);
+        const response = await httpRequest(url, token, 'GET', ignoreCertErrors);
         if (response.statusCode === 404) {
             return {
                 exists: false,
@@ -26078,7 +26086,7 @@ async function getTagInfo(tagName, owner, repo, baseUrl, token) {
         if (objectType === 'tag') {
             // Fetch the tag object
             const tagUrl = `${apiBase}/api/v1/repos/${owner}/${repo}/git/tags/${objectSha}`;
-            const tagResponse = await httpRequest(tagUrl, token);
+            const tagResponse = await httpRequest(tagUrl, token, 'GET', ignoreCertErrors);
             if (tagResponse.statusCode === 200) {
                 const tagData = JSON.parse(tagResponse.body);
                 commitSha = tagData.object?.sha || objectSha;
@@ -26108,7 +26116,7 @@ async function getTagInfo(tagName, owner, repo, baseUrl, token) {
 /**
  * Get all tags from Gitea repository
  */
-async function getAllTags(owner, repo, baseUrl, token) {
+async function getAllTags(owner, repo, baseUrl, token, ignoreCertErrors = false) {
     const apiBase = baseUrl.replace(/\/$/, '');
     const url = `${apiBase}/api/v1/repos/${owner}/${repo}/tags?limit=100`;
     try {
@@ -26117,7 +26125,7 @@ async function getAllTags(owner, repo, baseUrl, token) {
         let hasMore = true;
         while (hasMore) {
             const pageUrl = `${url}&page=${page}`;
-            const response = await httpRequest(pageUrl, token);
+            const response = await httpRequest(pageUrl, token, 'GET', ignoreCertErrors);
             if (response.statusCode !== 200) {
                 throw new Error(`Gitea API error: ${response.statusCode} - ${response.body}`);
             }
@@ -26199,7 +26207,7 @@ const types_1 = __nccwpck_require__(8522);
 /**
  * Make HTTP request
  */
-function httpRequest(url, token, method = 'GET') {
+function httpRequest(url, token, method = 'GET', ignoreCertErrors = false) {
     return new Promise((resolve, reject) => {
         const urlObj = new URL(url);
         const headers = {
@@ -26216,6 +26224,10 @@ function httpRequest(url, token, method = 'GET') {
             method,
             headers,
         };
+        // Ignore certificate errors if requested
+        if (ignoreCertErrors) {
+            options.rejectUnauthorized = false;
+        }
         const req = https.request(options, (res) => {
             let body = '';
             res.on('data', (chunk) => {
@@ -26238,11 +26250,11 @@ function httpRequest(url, token, method = 'GET') {
 /**
  * Get tag information from GitHub API
  */
-async function getTagInfo(tagName, owner, repo, token) {
+async function getTagInfo(tagName, owner, repo, token, ignoreCertErrors = false) {
     // GitHub API endpoint for tag refs
     const url = `https://api.github.com/repos/${owner}/${repo}/git/refs/tags/${tagName}`;
     try {
-        const response = await httpRequest(url, token);
+        const response = await httpRequest(url, token, 'GET', ignoreCertErrors);
         if (response.statusCode === 404) {
             return {
                 exists: false,
@@ -26269,7 +26281,7 @@ async function getTagInfo(tagName, owner, repo, token) {
         if (objectType === 'tag') {
             // Fetch the tag object
             const tagUrl = `https://api.github.com/repos/${owner}/${repo}/git/tags/${objectSha}`;
-            const tagResponse = await httpRequest(tagUrl, token);
+            const tagResponse = await httpRequest(tagUrl, token, 'GET', ignoreCertErrors);
             if (tagResponse.statusCode === 200) {
                 const tagData = JSON.parse(tagResponse.body);
                 commitSha = tagData.object?.sha || objectSha;
@@ -26298,7 +26310,7 @@ async function getTagInfo(tagName, owner, repo, token) {
 /**
  * Get all tags from GitHub repository
  */
-async function getAllTags(owner, repo, token) {
+async function getAllTags(owner, repo, token, ignoreCertErrors = false) {
     const url = `https://api.github.com/repos/${owner}/${repo}/git/refs/tags?per_page=100`;
     try {
         const allTags = [];
@@ -26306,7 +26318,7 @@ async function getAllTags(owner, repo, token) {
         let hasMore = true;
         while (hasMore) {
             const pageUrl = `${url}&page=${page}`;
-            const response = await httpRequest(pageUrl, token);
+            const response = await httpRequest(pageUrl, token, 'GET', ignoreCertErrors);
             if (response.statusCode !== 200) {
                 throw new Error(`GitHub API error: ${response.statusCode} - ${response.body}`);
             }
@@ -26325,13 +26337,13 @@ async function getAllTags(owner, repo, token) {
                     if (ref.object?.type === 'tag') {
                         // For annotated tags, get the commit SHA from the tag object
                         const tagUrl = `https://api.github.com/repos/${owner}/${repo}/git/tags/${objectSha}`;
-                        const tagResponse = await httpRequest(tagUrl, token);
+                        const tagResponse = await httpRequest(tagUrl, token, 'GET', ignoreCertErrors);
                         if (tagResponse.statusCode === 200) {
                             const tagData = JSON.parse(tagResponse.body);
                             const commitSha = tagData.object?.sha || '';
                             if (commitSha) {
                                 const commitUrl = `https://api.github.com/repos/${owner}/${repo}/git/commits/${commitSha}`;
-                                const commitResponse = await httpRequest(commitUrl, token);
+                                const commitResponse = await httpRequest(commitUrl, token, 'GET', ignoreCertErrors);
                                 if (commitResponse.statusCode === 200) {
                                     const commitData = JSON.parse(commitResponse.body);
                                     date = commitData.committer?.date || '';
@@ -26342,7 +26354,7 @@ async function getAllTags(owner, repo, token) {
                     else {
                         // For lightweight tags, get commit date directly
                         const commitUrl = `https://api.github.com/repos/${owner}/${repo}/git/commits/${objectSha}`;
-                        const commitResponse = await httpRequest(commitUrl, token);
+                        const commitResponse = await httpRequest(commitUrl, token, 'GET', ignoreCertErrors);
                         if (commitResponse.statusCode === 200) {
                             const commitData = JSON.parse(commitResponse.body);
                             date = commitData.committer?.date || '';
@@ -26438,14 +26450,14 @@ async function getTagInfoFromRepo(tagName, config) {
         }
         switch (config.platform) {
             case types_1.Platform.GITHUB:
-                return await (0, github_client_1.getTagInfo)(tagName, config.owner, config.repo, config.token);
+                return await (0, github_client_1.getTagInfo)(tagName, config.owner, config.repo, config.token, config.ignoreCertErrors);
             case types_1.Platform.GITEA:
                 if (!config.baseUrl) {
                     throw new Error('Gitea base URL is required');
                 }
-                return await (0, gitea_client_1.getTagInfo)(tagName, config.owner, config.repo, config.baseUrl, config.token);
+                return await (0, gitea_client_1.getTagInfo)(tagName, config.owner, config.repo, config.baseUrl, config.token, config.ignoreCertErrors);
             case types_1.Platform.BITBUCKET:
-                return await (0, bitbucket_client_1.getTagInfo)(tagName, config.owner, config.repo, config.token);
+                return await (0, bitbucket_client_1.getTagInfo)(tagName, config.owner, config.repo, config.token, config.ignoreCertErrors);
             default:
                 throw new Error(`Unsupported platform: ${config.platform}`);
         }
@@ -26466,13 +26478,18 @@ async function run() {
         const baseUrl = core.getInput('base_url');
         // Fallback to GITHUB_TOKEN if custom token is not provided
         const token = core.getInput('token') || process.env.GITHUB_TOKEN;
+        const ignoreCertErrors = core.getBooleanInput('ignore_cert_errors');
+        // Warn if certificate errors are being ignored (security risk)
+        if (ignoreCertErrors) {
+            core.warning('SSL certificate validation is disabled. This is a security risk and should only be used with self-hosted instances with self-signed certificates.');
+        }
         // Mask token in logs
         if (token) {
             core.setSecret(token);
         }
         // Detect repository configuration
         core.info('Detecting repository configuration...');
-        const repoConfig = (0, repo_detector_1.detectRepository)(repository, platform, owner, repo, baseUrl, token);
+        const repoConfig = (0, repo_detector_1.detectRepository)(repository, platform, owner, repo, baseUrl, token, ignoreCertErrors);
         core.info(`Repository type: ${repoConfig.type}, Platform: ${repoConfig.platform || 'N/A'}`);
         // Resolve "latest" tag if needed
         let resolvedTagName = tagName;
@@ -26667,7 +26684,7 @@ function detectPlatformFromUrl(url) {
 /**
  * Build repository configuration from inputs
  */
-function detectRepository(repository, platform, owner, repo, baseUrl, token) {
+function detectRepository(repository, platform, owner, repo, baseUrl, token, ignoreCertErrors = false) {
     // Apply fallback to GITHUB_TOKEN if token is not provided
     const finalToken = token || process.env.GITHUB_TOKEN;
     // If separate inputs are provided, use them
@@ -26683,6 +26700,7 @@ function detectRepository(repository, platform, owner, repo, baseUrl, token) {
             repo,
             baseUrl: baseUrl || (platformEnum === types_1.Platform.GITEA ? undefined : undefined),
             token: finalToken,
+            ignoreCertErrors,
         };
     }
     // If repository input is provided
@@ -26701,6 +26719,7 @@ function detectRepository(repository, platform, owner, repo, baseUrl, token) {
                     owner: parsed.owner,
                     repo: parsed.repo,
                     token: finalToken,
+                    ignoreCertErrors,
                 };
             }
             if (detectedPlatform === types_1.Platform.BITBUCKET) {
@@ -26714,6 +26733,7 @@ function detectRepository(repository, platform, owner, repo, baseUrl, token) {
                     owner: parsed.owner,
                     repo: parsed.repo,
                     token: finalToken,
+                    ignoreCertErrors,
                 };
             }
             // Gitea (default for unknown URLs or explicit Gitea)
@@ -26728,6 +26748,7 @@ function detectRepository(repository, platform, owner, repo, baseUrl, token) {
                 repo: parsed.repo,
                 baseUrl: parsed.baseUrl,
                 token: finalToken,
+                ignoreCertErrors,
             };
         }
         else {
@@ -26751,6 +26772,7 @@ function detectRepository(repository, platform, owner, repo, baseUrl, token) {
             owner,
             repo,
             token: finalToken,
+            ignoreCertErrors,
         };
     }
     throw new Error('Repository not specified. Provide either repository (URL or path), or platform/owner/repo inputs, or run in GitHub Actions context.');
@@ -26923,14 +26945,14 @@ async function getAllTagsFromRepo(config) {
         }
         switch (config.platform) {
             case types_1.Platform.GITHUB:
-                return await (0, github_client_1.getAllTags)(config.owner, config.repo, config.token);
+                return await (0, github_client_1.getAllTags)(config.owner, config.repo, config.token, config.ignoreCertErrors);
             case types_1.Platform.GITEA:
                 if (!config.baseUrl) {
                     throw new Error('Gitea base URL is required');
                 }
-                return await (0, gitea_client_1.getAllTags)(config.owner, config.repo, config.baseUrl, config.token);
+                return await (0, gitea_client_1.getAllTags)(config.owner, config.repo, config.baseUrl, config.token, config.ignoreCertErrors);
             case types_1.Platform.BITBUCKET:
-                return await (0, bitbucket_client_1.getAllTags)(config.owner, config.repo, config.token);
+                return await (0, bitbucket_client_1.getAllTags)(config.owner, config.repo, config.token, config.ignoreCertErrors);
             default:
                 throw new Error(`Unsupported platform: ${config.platform}`);
         }

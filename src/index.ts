@@ -33,7 +33,8 @@ async function getTagInfoFromRepo(
           tagName,
           config.owner,
           config.repo,
-          config.token
+          config.token,
+          config.ignoreCertErrors
         );
       case Platform.GITEA:
         if (!config.baseUrl) {
@@ -44,14 +45,16 @@ async function getTagInfoFromRepo(
           config.owner,
           config.repo,
           config.baseUrl,
-          config.token
+          config.token,
+          config.ignoreCertErrors
         );
       case Platform.BITBUCKET:
         return await getBitbucketTagInfo(
           tagName,
           config.owner,
           config.repo,
-          config.token
+          config.token,
+          config.ignoreCertErrors
         );
       default:
         throw new Error(`Unsupported platform: ${config.platform}`);
@@ -75,6 +78,14 @@ async function run(): Promise<void> {
     const baseUrl = core.getInput('base_url');
     // Fallback to GITHUB_TOKEN if custom token is not provided
     const token = core.getInput('token') || process.env.GITHUB_TOKEN;
+    const ignoreCertErrors = core.getBooleanInput('ignore_cert_errors');
+
+    // Warn if certificate errors are being ignored (security risk)
+    if (ignoreCertErrors) {
+      core.warning(
+        'SSL certificate validation is disabled. This is a security risk and should only be used with self-hosted instances with self-signed certificates.'
+      );
+    }
 
     // Mask token in logs
     if (token) {
@@ -89,7 +100,8 @@ async function run(): Promise<void> {
       owner,
       repo,
       baseUrl,
-      token
+      token,
+      ignoreCertErrors
     );
 
     core.info(

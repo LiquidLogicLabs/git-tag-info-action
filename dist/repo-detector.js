@@ -141,7 +141,7 @@ function detectPlatformFromUrl(url) {
 /**
  * Build repository configuration from inputs
  */
-function detectRepository(repository, platform, owner, repo, baseUrl, token) {
+function detectRepository(repository, platform, owner, repo, baseUrl, token, ignoreCertErrors = false) {
     // Apply fallback to GITHUB_TOKEN if token is not provided
     const finalToken = token || process.env.GITHUB_TOKEN;
     // If separate inputs are provided, use them
@@ -157,6 +157,7 @@ function detectRepository(repository, platform, owner, repo, baseUrl, token) {
             repo,
             baseUrl: baseUrl || (platformEnum === types_1.Platform.GITEA ? undefined : undefined),
             token: finalToken,
+            ignoreCertErrors,
         };
     }
     // If repository input is provided
@@ -175,6 +176,7 @@ function detectRepository(repository, platform, owner, repo, baseUrl, token) {
                     owner: parsed.owner,
                     repo: parsed.repo,
                     token: finalToken,
+                    ignoreCertErrors,
                 };
             }
             if (detectedPlatform === types_1.Platform.BITBUCKET) {
@@ -188,6 +190,7 @@ function detectRepository(repository, platform, owner, repo, baseUrl, token) {
                     owner: parsed.owner,
                     repo: parsed.repo,
                     token: finalToken,
+                    ignoreCertErrors,
                 };
             }
             // Gitea (default for unknown URLs or explicit Gitea)
@@ -202,6 +205,7 @@ function detectRepository(repository, platform, owner, repo, baseUrl, token) {
                 repo: parsed.repo,
                 baseUrl: parsed.baseUrl,
                 token: finalToken,
+                ignoreCertErrors,
             };
         }
         else {
@@ -225,6 +229,7 @@ function detectRepository(repository, platform, owner, repo, baseUrl, token) {
             owner,
             repo,
             token: finalToken,
+            ignoreCertErrors,
         };
     }
     throw new Error('Repository not specified. Provide either repository (URL or path), or platform/owner/repo inputs, or run in GitHub Actions context.');

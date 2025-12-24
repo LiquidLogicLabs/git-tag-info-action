@@ -41,7 +41,7 @@ const types_1 = require("./types");
 /**
  * Make HTTP request
  */
-function httpRequest(url, token, method = 'GET') {
+function httpRequest(url, token, method = 'GET', ignoreCertErrors = false) {
     return new Promise((resolve, reject) => {
         const urlObj = new URL(url);
         const isHttps = urlObj.protocol === 'https:';
@@ -60,6 +60,10 @@ function httpRequest(url, token, method = 'GET') {
             method,
             headers,
         };
+        // Ignore certificate errors if requested (HTTPS only)
+        if (isHttps && ignoreCertErrors) {
+            options.rejectUnauthorized = false;
+        }
         const req = client.request(options, (res) => {
             let body = '';
             res.on('data', (chunk) => {
@@ -82,12 +86,12 @@ function httpRequest(url, token, method = 'GET') {
 /**
  * Get tag information from Gitea API
  */
-async function getTagInfo(tagName, owner, repo, baseUrl, token) {
+async function getTagInfo(tagName, owner, repo, baseUrl, token, ignoreCertErrors = false) {
     // Gitea API endpoint for tag refs
     const apiBase = baseUrl.replace(/\/$/, '');
     const url = `${apiBase}/api/v1/repos/${owner}/${repo}/git/refs/tags/${tagName}`;
     try {
-        const response = await httpRequest(url, token);
+        const response = await httpRequest(url, token, 'GET', ignoreCertErrors);
         if (response.statusCode === 404) {
             return {
                 exists: false,
@@ -114,7 +118,7 @@ async function getTagInfo(tagName, owner, repo, baseUrl, token) {
         if (objectType === 'tag') {
             // Fetch the tag object
             const tagUrl = `${apiBase}/api/v1/repos/${owner}/${repo}/git/tags/${objectSha}`;
-            const tagResponse = await httpRequest(tagUrl, token);
+            const tagResponse = await httpRequest(tagUrl, token, 'GET', ignoreCertErrors);
             if (tagResponse.statusCode === 200) {
                 const tagData = JSON.parse(tagResponse.body);
                 commitSha = tagData.object?.sha || objectSha;
@@ -144,7 +148,7 @@ async function getTagInfo(tagName, owner, repo, baseUrl, token) {
 /**
  * Get all tags from Gitea repository
  */
-async function getAllTags(owner, repo, baseUrl, token) {
+async function getAllTags(owner, repo, baseUrl, token, ignoreCertErrors = false) {
     const apiBase = baseUrl.replace(/\/$/, '');
     const url = `${apiBase}/api/v1/repos/${owner}/${repo}/tags?limit=100`;
     try {
@@ -153,7 +157,7 @@ async function getAllTags(owner, repo, baseUrl, token) {
         let hasMore = true;
         while (hasMore) {
             const pageUrl = `${url}&page=${page}`;
-            const response = await httpRequest(pageUrl, token);
+            const response = await httpRequest(pageUrl, token, 'GET', ignoreCertErrors);
             if (response.statusCode !== 200) {
                 throw new Error(`Gitea API error: ${response.statusCode} - ${response.body}`);
             }

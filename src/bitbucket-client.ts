@@ -7,7 +7,8 @@ import { TagInfo, TagType, HttpResponse } from './types';
 function httpRequest(
   url: string,
   token?: string,
-  method: string = 'GET'
+  method: string = 'GET',
+  ignoreCertErrors: boolean = false
 ): Promise<HttpResponse> {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);
@@ -29,6 +30,11 @@ function httpRequest(
       method,
       headers,
     };
+
+    // Ignore certificate errors if requested
+    if (ignoreCertErrors) {
+      options.rejectUnauthorized = false;
+    }
 
     const req = https.request(options, (res) => {
       let body = '';
@@ -61,13 +67,14 @@ export async function getTagInfo(
   tagName: string,
   owner: string,
   repo: string,
-  token?: string
+  token?: string,
+  ignoreCertErrors: boolean = false
 ): Promise<TagInfo> {
   // Bitbucket API endpoint for tag refs
   const url = `https://api.bitbucket.org/2.0/repositories/${owner}/${repo}/refs/tags/${tagName}`;
 
   try {
-    const response = await httpRequest(url, token);
+    const response = await httpRequest(url, token, 'GET', ignoreCertErrors);
 
     if (response.statusCode === 404) {
       return {
@@ -119,7 +126,8 @@ export async function getTagInfo(
 export async function getAllTags(
   owner: string,
   repo: string,
-  token?: string
+  token?: string,
+  ignoreCertErrors: boolean = false
 ): Promise<Array<{ name: string; date: string }>> {
   const url = `https://api.bitbucket.org/2.0/repositories/${owner}/${repo}/refs/tags?pagelen=100`;
 
@@ -128,7 +136,7 @@ export async function getAllTags(
     let nextUrl: string | null = url;
 
     while (nextUrl) {
-      const response = await httpRequest(nextUrl, token);
+      const response = await httpRequest(nextUrl, token, 'GET', ignoreCertErrors);
 
       if (response.statusCode !== 200) {
         throw new Error(

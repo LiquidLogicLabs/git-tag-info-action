@@ -28,7 +28,7 @@ async function getAllTagsFromRepo(config: RepoConfig): Promise<
 
     switch (config.platform) {
       case Platform.GITHUB:
-        return await getGithubTags(config.owner, config.repo, config.token);
+        return await getGithubTags(config.owner, config.repo, config.token, config.ignoreCertErrors);
       case Platform.GITEA:
         if (!config.baseUrl) {
           throw new Error('Gitea base URL is required');
@@ -37,10 +37,11 @@ async function getAllTagsFromRepo(config: RepoConfig): Promise<
           config.owner,
           config.repo,
           config.baseUrl,
-          config.token
+          config.token,
+          config.ignoreCertErrors
         );
       case Platform.BITBUCKET:
-        return await getBitbucketTags(config.owner, config.repo, config.token);
+        return await getBitbucketTags(config.owner, config.repo, config.token, config.ignoreCertErrors);
       default:
         throw new Error(`Unsupported platform: ${config.platform}`);
     }

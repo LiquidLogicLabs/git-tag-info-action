@@ -59,6 +59,16 @@ jobs:
         # Note: This test will be skipped if CUSTOM_GITHUB_TOKEN secret is not configured
         # To enable this test, add CUSTOM_GITHUB_TOKEN to repository secrets
 
+      - name: Test action - Self-hosted Gitea with ignore_cert_errors
+        id: test-self-hosted
+        uses: ./
+        with:
+          tag_name: latest
+          repository: https://git.ravenwolf.org/github/traefik
+          base_url: https://git.ravenwolf.org
+          ignore_cert_errors: true
+        continue-on-error: true
+
       - name: Integration test summary
         if: always()
         run: |
@@ -84,5 +94,12 @@ jobs:
           else
             echo "⚠️ Custom token test: FAILED or not configured" >> $GITHUB_STEP_SUMMARY
             echo "  - To test custom tokens, add CUSTOM_GITHUB_TOKEN to repository secrets" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.test-self-hosted.outcome }}" == "success" ]; then
+            echo "✅ Self-hosted Gitea test: PASSED" >> $GITHUB_STEP_SUMMARY
+            echo "  - Tag: ${{ steps.test-self-hosted.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Self-hosted Gitea test: FAILED (may require network access or certificate issues)" >> $GITHUB_STEP_SUMMARY
           fi
 

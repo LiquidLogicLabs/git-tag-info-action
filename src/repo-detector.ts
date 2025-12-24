@@ -130,7 +130,8 @@ export function detectRepository(
   owner?: string,
   repo?: string,
   baseUrl?: string,
-  token?: string
+  token?: string,
+  ignoreCertErrors: boolean = false
 ): RepoConfig {
   // Apply fallback to GITHUB_TOKEN if token is not provided
   const finalToken = token || process.env.GITHUB_TOKEN;
@@ -149,6 +150,7 @@ export function detectRepository(
       repo,
       baseUrl: baseUrl || (platformEnum === Platform.GITEA ? undefined : undefined),
       token: finalToken,
+      ignoreCertErrors,
     };
   }
 
@@ -169,6 +171,7 @@ export function detectRepository(
           owner: parsed.owner,
           repo: parsed.repo,
           token: finalToken,
+          ignoreCertErrors,
         };
       }
 
@@ -183,6 +186,7 @@ export function detectRepository(
           owner: parsed.owner,
           repo: parsed.repo,
           token: finalToken,
+          ignoreCertErrors,
         };
       }
 
@@ -198,6 +202,7 @@ export function detectRepository(
         repo: parsed.repo,
         baseUrl: parsed.baseUrl,
         token: finalToken,
+        ignoreCertErrors,
       };
     } else {
       // Local repository path
@@ -222,6 +227,7 @@ export function detectRepository(
       owner,
       repo,
       token: finalToken,
+      ignoreCertErrors,
     };
   }
 

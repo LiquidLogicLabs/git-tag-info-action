@@ -79,6 +79,20 @@ Or with a custom token:
     token: ${{ secrets.GITEA_TOKEN }}
 ```
 
+### Self-Hosted Gitea with Self-Signed Certificate
+
+```yaml
+- name: Get tag info from self-hosted instance
+  id: tag-info
+  uses: your-org/git-tag-info-action@v1
+  with:
+    tag_name: latest
+    repository: https://git.example.com/owner/repo
+    base_url: https://git.example.com
+    token: ${{ secrets.GITEA_TOKEN }}
+    ignore_cert_errors: true  # Required for self-signed certificates
+```
+
 ### Bitbucket Repository
 
 ```yaml
@@ -139,6 +153,7 @@ Or with a custom token:
 | `repo` | Repository name (for separate input mode) | No | - |
 | `base_url` | Custom base URL for self-hosted instances (e.g., https://gitea.example.com) | No | - |
 | `token` | Custom Personal Access Token (works for all platforms). If not provided, automatically falls back to `GITHUB_TOKEN` environment variable when available (e.g., in GitHub Actions) | No | - |
+| `ignore_cert_errors` | Ignore SSL certificate errors (useful for self-hosted instances with self-signed certificates). **Warning**: This is a security risk and should only be used with trusted self-hosted instances | No | `false` |
 
 ## Outputs
 
@@ -315,6 +330,22 @@ For remote repositories, you may need to provide an authentication token:
 - **Bitbucket**: Use an App Password or access token (required via `token` input)
 
 **Note**: The token is automatically masked in logs for security. In GitHub Actions, you can omit the `token` input to automatically use `${{ secrets.GITHUB_TOKEN }}`.
+
+## Self-Signed Certificates
+
+For self-hosted instances (especially Gitea) that use self-signed SSL certificates, you may encounter certificate validation errors. You can use the `ignore_cert_errors` input to bypass certificate validation:
+
+```yaml
+- name: Get tag from self-hosted instance
+  uses: your-org/git-tag-info-action@v1
+  with:
+    tag_name: latest
+    repository: https://git.example.com/owner/repo
+    base_url: https://git.example.com
+    ignore_cert_errors: true  # Bypass SSL certificate validation
+```
+
+**Security Warning**: Ignoring certificate errors is a security risk and should only be used with trusted self-hosted instances. The action will display a warning when this option is enabled.
 
 ## Security Considerations
 
