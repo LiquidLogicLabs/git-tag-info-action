@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   lint:
+    if: github.ref_type != 'tag'  # Skip CI on tag pushes (handled by release workflow)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -33,5 +34,6 @@ jobs:
         run: npx tsc --noEmit
 
   test:
+    if: github.ref_type != 'tag'  # Skip CI on tag pushes (handled by release workflow)
     uses: ./.github/workflows/test.yml
 

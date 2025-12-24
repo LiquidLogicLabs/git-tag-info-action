@@ -120,6 +120,27 @@ Or with a custom token:
   run: echo "Latest tag is ${{ steps.tag-info.outputs.tag_name }}"
 ```
 
+### Version Pinning
+
+This action supports flexible version pinning to balance stability and updates:
+
+**Major Version** (`@v1`):
+- Automatically updates to the latest `v1.x.x` release
+- Recommended for most users who want bug fixes and minor updates
+- Example: `uses: LiquidLogicLabs/git-tag-info-action@v1`
+
+**Minor Version** (`@v1.0`):
+- Automatically updates to the latest `v1.0.x` patch release
+- Recommended when you want to stay on a specific minor version
+- Example: `uses: LiquidLogicLabs/git-tag-info-action@v1.0`
+
+**Exact Version** (`@v1.0.3`):
+- Pins to a specific release
+- Recommended for production workflows requiring maximum stability
+- Example: `uses: LiquidLogicLabs/git-tag-info-action@v1.0.3`
+
+> **Note**: Major and minor version tags (e.g., `v1`, `v1.0`) are automatically created/updated with each stable release to point to the latest patch version.
+
 ### Using Outputs
 
 ```yaml
