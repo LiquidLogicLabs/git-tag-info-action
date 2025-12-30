@@ -1,61 +1,26 @@
 import * as https from 'https';
-import { TagInfo, TagType, HttpResponse } from './types';
+import { Octokit } from '@octokit/rest';
+import { TagInfo, TagType } from './types';
 
 /**
- * Make HTTP request
+ * Create an Octokit instance with optional authentication and certificate validation
  */
-function httpRequest(
-  url: string,
-  token?: string,
-  method: string = 'GET',
-  ignoreCertErrors: boolean = false
-): Promise<HttpResponse> {
-  return new Promise((resolve, reject) => {
-    const urlObj = new URL(url);
-    const headers: Record<string, string> = {
-      'User-Agent': 'git-tag-info-action',
-      Accept: 'application/vnd.github.v3+json',
-    };
+function createOctokit(token?: string, ignoreCertErrors: boolean = false): Octokit {
+  const options: ConstructorParameters<typeof Octokit>[0] = {
+    auth: token,
+  };
 
-    if (token) {
-      headers['Authorization'] = `token ${token}`;
-    }
-
-    const options: https.RequestOptions = {
-      hostname: urlObj.hostname,
-      port: urlObj.port || 443,
-      path: urlObj.pathname + urlObj.search,
-      method,
-      headers,
-    };
-
-    // Ignore certificate errors if requested
-    if (ignoreCertErrors) {
-      options.rejectUnauthorized = false;
-    }
-
-    const req = https.request(options, (res) => {
-      let body = '';
-
-      res.on('data', (chunk) => {
-        body += chunk;
-      });
-
-      res.on('end', () => {
-        resolve({
-          statusCode: res.statusCode || 0,
-          headers: res.headers,
-          body,
-        });
-      });
+  // Handle certificate validation for GitHub Enterprise with self-signed certs
+  if (ignoreCertErrors) {
+    const agent = new https.Agent({
+      rejectUnauthorized: false,
     });
+    options.request = {
+      agent,
+    };
+  }
 
-    req.on('error', (error) => {
-      reject(error);
-    });
-
-    req.end();
-  });
+  return new Octokit(options);
 }
 
 /**
@@ -68,35 +33,19 @@ export async function getTagInfo(
   token?: string,
   ignoreCertErrors: boolean = false
 ): Promise<TagInfo> {
-  // GitHub API endpoint for tag refs
-  const url = `https://api.github.com/repos/${owner}/${repo}/git/refs/tags/${tagName}`;
+  const octokit = createOctokit(token, ignoreCertErrors);
 
   try {
-    const response = await httpRequest(url, token, 'GET', ignoreCertErrors);
-
-    if (response.statusCode === 404) {
-      return {
-        exists: false,
-        tag_name: tagName,
-        tag_sha: '',
-        tag_type: TagType.COMMIT,
-        commit_sha: '',
-        tag_message: '',
-        verified: false,
-      };
-    }
-
-    if (response.statusCode !== 200) {
-      throw new Error(
-        `GitHub API error: ${response.statusCode} - ${response.body}`
-      );
-    }
-
-    const refData = JSON.parse(response.body);
+    // Get the tag ref
+    const { data: refData } = await octokit.git.getRef({
+      owner,
+      repo,
+      ref: `tags/${tagName}`,
+    });
 
     // Get the object SHA (could be tag or commit)
-    const objectSha = refData.object?.sha || '';
-    const objectType = refData.object?.type || '';
+    const objectSha = refData.object.sha;
+    const objectType = refData.object.type;
 
     // If it's a tag object, we need to fetch the tag object to get the commit
     let commitSha = objectSha;
@@ -106,15 +55,19 @@ export async function getTagInfo(
 
     if (objectType === 'tag') {
       // Fetch the tag object
-      const tagUrl = `https://api.github.com/repos/${owner}/${repo}/git/tags/${objectSha}`;
-      const tagResponse = await httpRequest(tagUrl, token, 'GET', ignoreCertErrors);
-
-      if (tagResponse.statusCode === 200) {
-        const tagData = JSON.parse(tagResponse.body);
-        commitSha = tagData.object?.sha || objectSha;
+      try {
+        const { data: tagData } = await octokit.git.getTag({
+          owner,
+          repo,
+          tag_sha: objectSha,
+        });
+        commitSha = tagData.object.sha;
         tagMessage = tagData.message || '';
         tagType = TagType.ANNOTATED;
         verified = tagData.verification?.verified || false;
+      } catch (error) {
+        // If we can't get the tag object, use the ref data
+        // This shouldn't happen, but handle gracefully
       }
     }
 
@@ -127,92 +80,111 @@ export async function getTagInfo(
       tag_message: tagMessage,
       verified,
     };
-  } catch (error) {
+  } catch (error: any) {
+    // Handle 404 errors (tag doesn't exist)
+    if (error.status === 404) {
+      return {
+        exists: false,
+        tag_name: tagName,
+        tag_sha: '',
+        tag_type: TagType.COMMIT,
+        commit_sha: '',
+        tag_message: '',
+        verified: false,
+      };
+    }
+
+    // Re-throw other errors with formatted message
     if (error instanceof Error) {
       throw new Error(`Failed to get tag info from GitHub: ${error.message}`);
     }
-    throw error;
+    throw new Error(`Failed to get tag info from GitHub: ${String(error)}`);
   }
 }
 
 /**
- * Get all tags from GitHub repository
+ * Get all tag names from GitHub repository (fast, no dates)
+ * This is optimized for cases where dates are not needed (e.g., semver sorting)
+ * Uses the /repos/{owner}/{repo}/tags endpoint which returns tags in reverse
+ * chronological order (newest first), so we can limit to the first page
+ * to get the most recent tags.
+ */
+export async function getAllTagNames(
+  owner: string,
+  repo: string,
+  token?: string,
+  ignoreCertErrors: boolean = false,
+  maxTags: number = 100
+): Promise<string[]> {
+  const octokit = createOctokit(token, ignoreCertErrors);
+
+  try {
+    const { data: tags } = await octokit.repos.listTags({
+      owner,
+      repo,
+      per_page: Math.min(maxTags, 100),
+    });
+
+    // Extract tag names (the 'name' field contains the tag name)
+    const tagNames = tags.map((tag) => tag.name).filter((name) => name);
+
+    return tagNames;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Failed to get tag names from GitHub: ${error.message}`);
+    }
+    throw new Error(`Failed to get tag names from GitHub: ${String(error)}`);
+  }
+}
+
+/**
+ * Get all tags from GitHub repository with dates
+ * Note: This makes many API calls (1 per tag for commit dates). Consider using getAllTagNames() first
+ * if dates are not needed (e.g., for semver sorting).
+ * Uses the /repos/{owner}/{repo}/tags endpoint which returns tags sorted by date (newest first),
+ * allowing us to limit to the most recent tags.
  */
 export async function getAllTags(
   owner: string,
   repo: string,
   token?: string,
-  ignoreCertErrors: boolean = false
+  ignoreCertErrors: boolean = false,
+  maxTags: number = 100
 ): Promise<Array<{ name: string; date: string }>> {
-  const url = `https://api.github.com/repos/${owner}/${repo}/git/refs/tags?per_page=100`;
+  const octokit = createOctokit(token, ignoreCertErrors);
 
   try {
+    const { data: tags } = await octokit.repos.listTags({
+      owner,
+      repo,
+      per_page: Math.min(maxTags, 100),
+    });
+
     const allTags: Array<{ name: string; date: string }> = [];
-    let page = 1;
-    let hasMore = true;
 
-    while (hasMore) {
-      const pageUrl = `${url}&page=${page}`;
-      const response = await httpRequest(pageUrl, token, 'GET', ignoreCertErrors);
+    // Extract tag names and fetch commit dates
+    for (const tag of tags) {
+      const tagName = tag.name || '';
+      let date = '';
 
-      if (response.statusCode !== 200) {
-        throw new Error(
-          `GitHub API error: ${response.statusCode} - ${response.body}`
-        );
-      }
-
-      const refs = JSON.parse(response.body);
-      if (refs.length === 0) {
-        hasMore = false;
-        break;
-      }
-
-      // Extract tag names and fetch commit dates
-      for (const ref of refs) {
-        const tagName = ref.ref.replace('refs/tags/', '');
-        let date = '';
-
-        // Get commit date from the tag's commit
-        try {
-          const objectSha = ref.object?.sha || '';
-          if (ref.object?.type === 'tag') {
-            // For annotated tags, get the commit SHA from the tag object
-            const tagUrl = `https://api.github.com/repos/${owner}/${repo}/git/tags/${objectSha}`;
-            const tagResponse = await httpRequest(tagUrl, token, 'GET', ignoreCertErrors);
-            if (tagResponse.statusCode === 200) {
-              const tagData = JSON.parse(tagResponse.body);
-              const commitSha = tagData.object?.sha || '';
-              if (commitSha) {
-                const commitUrl = `https://api.github.com/repos/${owner}/${repo}/git/commits/${commitSha}`;
-                const commitResponse = await httpRequest(commitUrl, token, 'GET', ignoreCertErrors);
-                if (commitResponse.statusCode === 200) {
-                  const commitData = JSON.parse(commitResponse.body);
-                  date = commitData.committer?.date || '';
-                }
-              }
-            }
-          } else {
-            // For lightweight tags, get commit date directly
-            const commitUrl = `https://api.github.com/repos/${owner}/${repo}/git/commits/${objectSha}`;
-            const commitResponse = await httpRequest(commitUrl, token, 'GET', ignoreCertErrors);
-            if (commitResponse.statusCode === 200) {
-              const commitData = JSON.parse(commitResponse.body);
-              date = commitData.committer?.date || '';
-            }
-          }
-        } catch {
-          // If we can't get the date, continue without it
+      // Get commit date from the tag's commit
+      // The /tags endpoint includes a commit object with SHA, but not the full commit details
+      // So we need to fetch the commit to get the date
+      try {
+        const commitSha = tag.commit?.sha || '';
+        if (commitSha) {
+          const { data: commitData } = await octokit.git.getCommit({
+            owner,
+            repo,
+            commit_sha: commitSha,
+          });
+          date = commitData.committer?.date || '';
         }
-
-        allTags.push({ name: tagName, date });
+      } catch {
+        // If we can't get the date, continue without it
       }
 
-      // Check if there are more pages
-      if (refs.length < 100) {
-        hasMore = false;
-      } else {
-        page++;
-      }
+      allTags.push({ name: tagName, date });
     }
 
     return allTags;
@@ -220,7 +192,6 @@ export async function getAllTags(
     if (error instanceof Error) {
       throw new Error(`Failed to get tags from GitHub: ${error.message}`);
     }
-    throw error;
+    throw new Error(`Failed to get tags from GitHub: ${String(error)}`);
   }
 }
-

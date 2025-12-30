@@ -74,16 +74,69 @@ async function getAllTagsFromRepo(config) {
     throw new Error('Invalid repository configuration');
 }
 /**
+ * Get all tag names from repository (optimized, no dates)
+ * This is used for efficient semver resolution without fetching dates
+ */
+async function getAllTagNamesFromRepo(config) {
+    if (config.type === 'local') {
+        if (!config.path) {
+            throw new Error('Local repository path is required');
+        }
+        return (0, git_client_1.getAllTags)(config.path);
+    }
+    if (config.type === 'remote') {
+        if (!config.platform || !config.owner || !config.repo) {
+            throw new Error('Remote repository configuration is incomplete');
+        }
+        // For GitHub, use the optimized function that doesn't fetch dates
+        if (config.platform === types_1.Platform.GITHUB) {
+            return await (0, github_client_1.getAllTagNames)(config.owner, config.repo, config.token, config.ignoreCertErrors);
+        }
+        // For other platforms, we need to fetch tags with dates (they're efficient anyway)
+        // but we'll extract just the names
+        const tags = await getAllTagsFromRepo(config);
+        return tags.map((tag) => tag.name);
+    }
+    throw new Error('Invalid repository configuration');
+}
+/**
  * Resolve "latest" tag name
- * Strategy: Try semver first, then fallback to date
+ * Strategy: Try semver first (using fast name-only fetch for GitHub), then fallback to date
  */
 async function resolveLatestTag(config) {
     core.info('Resolving latest tag...');
+    // Optimization: For GitHub, first try to get just tag names (fast, no dates)
+    // and check if we can resolve using semver without fetching dates
+    if (config.type === 'remote' && config.platform === types_1.Platform.GITHUB) {
+        try {
+            const tagNames = await getAllTagNamesFromRepo(config);
+            if (tagNames.length === 0) {
+                throw new Error('No tags found in repository');
+            }
+            // Filter semver tags
+            const semverTags = tagNames.filter((tagName) => (0, semver_1.isSemver)(tagName));
+            if (semverTags.length > 0) {
+                core.info(`Found ${semverTags.length} semver tags, using semver comparison (optimized: no date fetching needed)`);
+                // Sort by semver (highest first)
+                const sorted = (0, semver_1.sortTagsBySemver)(semverTags);
+                const latest = sorted[0];
+                core.info(`Latest semver tag: ${latest}`);
+                return latest;
+            }
+            // If no semver tags, fall through to date-based sorting below
+            core.info('No semver tags found, falling back to date-based sorting');
+        }
+        catch (error) {
+            // If optimized path fails, fall through to full tag fetch
+            core.warning(`Optimized tag name fetch failed, using full tag fetch: ${error instanceof Error ? error.message : 'unknown error'}`);
+        }
+    }
+    // For non-GitHub platforms or if semver failed, get tags with dates
     const allTags = await getAllTagsFromRepo(config);
     if (allTags.length === 0) {
         throw new Error('No tags found in repository');
     }
-    // Filter semver tags
+    // Filter semver tags (in case we didn't check earlier)
     const semverTags = allTags.filter((tag) => (0, semver_1.isSemver)(tag.name));
     if (semverTags.length > 0) {
         core.info(`Found ${semverTags.length} semver tags, using semver comparison`);

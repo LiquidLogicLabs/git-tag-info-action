@@ -9,5 +9,8 @@ module.exports = {
     '!src/**/__tests__/**',
   ],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
+  moduleNameMapper: {
+    '^@octokit/rest$': '<rootDir>/src/__mocks__/@octokit/rest.ts',
+  },
 };
 
