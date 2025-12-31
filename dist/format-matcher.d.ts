@@ -7,6 +7,11 @@
  */
 export declare function isSimplePattern(format: string): boolean;
 /**
+ * Check if a format string is a wildcard pattern (e.g., "*", "*.*", "*.*.*")
+ * Wildcard patterns use * as a placeholder for any characters
+ */
+export declare function isWildcardPattern(format: string): boolean;
+/**
  * Convert a simple pattern to a regex
  * "X.X" → /^\d+\.\d+$/
  * "X.X.X" → /^\d+\.\d+\.\d+$/
@@ -14,8 +19,17 @@ export declare function isSimplePattern(format: string): boolean;
  */
 export declare function convertSimplePatternToRegex(format: string): RegExp;
 /**
+ * Convert a wildcard pattern to a regex
+ * "*" → /^[^.]*$/
+ * "*.*" → /^[^.]*\.[^.]*$/
+ * "*.*.*" → /^[^.]*\.[^.]*\.[^.]*$/
+ * "v*.*.*" → /^v[^.]*\.[^.]*\.[^.]*$/
+ */
+export declare function convertWildcardPatternToRegex(format: string): RegExp;
+/**
  * Check if a format string looks like a regex pattern
  * Regex patterns typically start with ^ or contain regex special characters
+ * Note: * is not treated as regex special char here since it's used for wildcard patterns
  */
 export declare function isRegexPattern(format: string): boolean;
 /**

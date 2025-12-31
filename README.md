@@ -144,7 +144,13 @@ Filter tags by format pattern when resolving "latest". This is useful when repos
    - `"X.X.X"` matches tags like `1.2.3`, `10.5.0`
    - `"vX.X.X"` matches tags like `v1.2.3`, `v10.5.0`
 
-2. **Regex Patterns**: For advanced matching, use regex patterns
+2. **Wildcard Patterns**: Use `*` as a placeholder for any characters
+   - `"*"` matches tags with no dots, like `latest`, `edge`, `dev`
+   - `"*.*"` matches tags with one dot, like `3.23`, `abc.def`, `1.2`
+   - `"*.*.*"` matches tags with two dots, like `1.2.3`, `abc.def.ghi`
+   - `"v*.*.*"` matches tags like `v1.2.3`, `vabc.def.ghi`
+
+3. **Regex Patterns**: For advanced matching, use regex patterns
    - `"^v\\d+\\.\\d+$"` matches tags like `v1.2`, `v10.5`
    - `"^\\d+\\.\\d+\\.\\d+-.*"` matches tags like `1.2.3-alpha`, `2.0.0-beta`
 
@@ -175,6 +181,20 @@ Filter tags by format pattern when resolving "latest". This is useful when repos
     tag_name: latest
     repository: https://github.com/owner/repo
     tag_format: vX.X.X
+
+# Match tags with wildcard pattern *.* (e.g., 3.23, abc.def)
+- uses: your-org/git-tag-info-action@v1
+  with:
+    tag_name: latest
+    repository: https://github.com/owner/repo
+    tag_format: '*.*'  # Matches any two segments separated by a dot
+
+# Match tags with wildcard pattern *.*.* (e.g., 1.2.3, abc.def.ghi)
+- uses: your-org/git-tag-info-action@v1
+  with:
+    tag_name: latest
+    repository: https://github.com/owner/repo
+    tag_format: '*.*.*'  # Matches any three segments separated by dots
 
 # Use regex for advanced patterns
 - uses: your-org/git-tag-info-action@v1

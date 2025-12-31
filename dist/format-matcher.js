@@ -4,7 +4,9 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.isSimplePattern = isSimplePattern;
+exports.isWildcardPattern = isWildcardPattern;
 exports.convertSimplePatternToRegex = convertSimplePatternToRegex;
+exports.convertWildcardPatternToRegex = convertWildcardPatternToRegex;
 exports.isRegexPattern = isRegexPattern;
 exports.matchTagFormat = matchTagFormat;
 exports.filterTagsByFormat = filterTagsByFormat;
@@ -17,6 +19,16 @@ function isSimplePattern(format) {
     // Examples: "X.X", "X.X.X", "vX.X.X"
     const simplePatternRegex = /^v?X(\.X)+$/i;
     return simplePatternRegex.test(format);
+}
+/**
+ * Check if a format string is a wildcard pattern (e.g., "*", "*.*", "*.*.*")
+ * Wildcard patterns use * as a placeholder for any characters
+ */
+function isWildcardPattern(format) {
+    // Wildcard patterns contain * and dots
+    // Examples: "*", "*.*", "*.*.*", "v*.*.*"
+    const wildcardPatternRegex = /^v?\*(\.\*)*$/i;
+    return wildcardPatternRegex.test(format);
 }
 /**
  * Convert a simple pattern to a regex
@@ -33,29 +45,62 @@ function convertSimplePatternToRegex(format) {
     return new RegExp(regexPattern);
 }
 /**
+ * Convert a wildcard pattern to a regex
+ * "*" → /^[^.]*$/
+ * "*.*" → /^[^.]*\.[^.]*$/
+ * "*.*.*" → /^[^.]*\.[^.]*\.[^.]*$/
+ * "v*.*.*" → /^v[^.]*\.[^.]*\.[^.]*$/
+ */
+function convertWildcardPatternToRegex(format) {
+    // Replace * with [^.]* (any characters except dots)
+    // This matches a single segment (non-dot characters)
+    // Escape dots to match literal dots (important: . in regex matches any char!)
+    let regexPattern = format.replace(/\*/g, '[^.]*').replace(/\./g, '\\.');
+    // Add anchors for full match
+    regexPattern = `^${regexPattern}$`;
+    return new RegExp(regexPattern);
+}
+/**
  * Check if a format string looks like a regex pattern
  * Regex patterns typically start with ^ or contain regex special characters
+ * Note: * is not treated as regex special char here since it's used for wildcard patterns
  */
 function isRegexPattern(format) {
-    // If it starts with ^ or contains regex special characters, treat as regex
+    // If it starts with ^ or /, treat as regex
     if (format.startsWith('^') || format.startsWith('/')) {
         return true;
     }
-    // Check for regex special characters that wouldn't appear in simple patterns
-    const regexSpecialChars = /[()[\]{}*+?|\\]/;
+    // Check for regex special characters (excluding * which is used for wildcards)
+    // Only treat as regex if it contains other special characters
+    const regexSpecialChars = /[()[\]{}+?|\\]/;
     return regexSpecialChars.test(format);
 }
 /**
  * Extract prefix from tag name (before first non-numeric/non-dot character)
- * Used for prefix matching
+ * Used for prefix matching with numeric patterns (X.X)
  * Examples:
  *   "3.23-bae0df8a-ls3" → "3.23"
  *   "v1.2.3-alpha" → "v1.2.3"
  *   "2.5" → "2.5"
  */
-function extractPrefix(tagName) {
+function extractNumericPrefix(tagName) {
     // Match from start: optional 'v', then digits and dots
     const prefixMatch = tagName.match(/^(v?\d+(?:\.\d+)*)/);
+    return prefixMatch ? prefixMatch[1] : '';
+}
+/**
+ * Extract prefix from tag name (before first non-alphanumeric/non-dot character)
+ * Used for prefix matching with wildcard patterns (*.*)
+ * Examples:
+ *   "3.23-bae0df8a-ls3" → "3.23"
+ *   "abc.def-123" → "abc.def"
+ *   "v1.2.3-alpha" → "v1.2.3"
+ *   "edge-e9613ab3-ls213" → "" (no dots, so no prefix to extract)
+ */
+function extractWildcardPrefix(tagName) {
+    // Match from start: optional 'v', then alphanumeric characters and dots
+    // Must contain at least one dot to be a valid prefix for *.* patterns
+    const prefixMatch = tagName.match(/^(v?[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)+)/);
     return prefixMatch ? prefixMatch[1] : '';
 }
 /**
@@ -71,9 +116,14 @@ function matchTagFormat(tagName, format) {
         return false;
     }
     let regex;
-    // Determine if it's a simple pattern or regex
+    let isWildcard = false;
+    // Determine if it's a simple pattern, wildcard pattern, or regex
     if (isSimplePattern(format)) {
         regex = convertSimplePatternToRegex(format);
+    }
+    else if (isWildcardPattern(format)) {
+        regex = convertWildcardPatternToRegex(format);
+        isWildcard = true;
     }
     else if (isRegexPattern(format)) {
         // Handle regex patterns
@@ -104,7 +154,8 @@ function matchTagFormat(tagName, format) {
         return true;
     }
     // If full match fails, try prefix match
-    const prefix = extractPrefix(tagName);
+    // Use appropriate prefix extraction based on pattern type
+    const prefix = isWildcard ? extractWildcardPrefix(tagName) : extractNumericPrefix(tagName);
     if (prefix && regex.test(prefix)) {
         return true;
     }

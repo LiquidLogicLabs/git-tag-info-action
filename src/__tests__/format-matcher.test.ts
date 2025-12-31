@@ -1,6 +1,8 @@
 import {
   isSimplePattern,
   convertSimplePatternToRegex,
+  isWildcardPattern,
+  convertWildcardPatternToRegex,
   isRegexPattern,
   matchTagFormat,
   filterTagsByFormat,
@@ -34,6 +36,71 @@ describe('format-matcher', () => {
       // The pattern allows any number of .X parts after the first X
       expect(isSimplePattern('X.X.X.X')).toBe(true);
       expect(isSimplePattern('X.X.X.X.X')).toBe(true);
+    });
+  });
+
+  describe('isWildcardPattern', () => {
+    it('should detect wildcard * pattern', () => {
+      expect(isWildcardPattern('*')).toBe(true);
+    });
+
+    it('should detect wildcard *.* pattern', () => {
+      expect(isWildcardPattern('*.*')).toBe(true);
+      expect(isWildcardPattern('v*.*')).toBe(true);
+    });
+
+    it('should detect wildcard *.*.* pattern', () => {
+      expect(isWildcardPattern('*.*.*')).toBe(true);
+      expect(isWildcardPattern('v*.*.*')).toBe(true);
+    });
+
+    it('should detect case-insensitive v prefix', () => {
+      expect(isWildcardPattern('V*.*')).toBe(true);
+      expect(isWildcardPattern('V*.*.*')).toBe(true);
+    });
+
+    it('should reject non-wildcard patterns', () => {
+      expect(isWildcardPattern('X.X')).toBe(false);
+      expect(isWildcardPattern('1.2.3')).toBe(false);
+      expect(isWildcardPattern('*X')).toBe(false);
+      expect(isWildcardPattern('X*')).toBe(false);
+      expect(isWildcardPattern('')).toBe(false);
+    });
+  });
+
+  describe('convertWildcardPatternToRegex', () => {
+    it('should convert * to regex', () => {
+      const regex = convertWildcardPatternToRegex('*');
+      expect(regex.test('latest')).toBe(true);
+      expect(regex.test('edge')).toBe(true);
+      expect(regex.test('dev')).toBe(true);
+      expect(regex.test('3.23')).toBe(false); // Contains dot
+    });
+
+    it('should convert *.* to regex', () => {
+      const regex = convertWildcardPatternToRegex('*.*');
+      expect(regex.test('3.23')).toBe(true);
+      expect(regex.test('abc.def')).toBe(true);
+      expect(regex.test('1.2')).toBe(true);
+      // Note: *.* matches any string with at least one dot (prefix matching handles segments)
+      expect(regex.test('3.23-bae0df8a-ls3')).toBe(true); // Has a dot, matches
+      expect(regex.test('edge-e9613ab3-ls213')).toBe(false); // No dot, can't match *.*
+    });
+
+    it('should convert *.*.* to regex', () => {
+      const regex = convertWildcardPatternToRegex('*.*.*');
+      expect(regex.test('1.2.3')).toBe(true);
+      expect(regex.test('abc.def.ghi')).toBe(true);
+      expect(regex.test('1.2')).toBe(false); // Only 2 segments, needs 3
+      // Note: *.*.* matches any string with at least two dots
+      expect(regex.test('1.2.3-alpha')).toBe(true); // Has two dots, matches
+    });
+
+    it('should convert v*.*.* to regex', () => {
+      const regex = convertWildcardPatternToRegex('v*.*.*');
+      expect(regex.test('v1.2.3')).toBe(true);
+      expect(regex.test('vabc.def.ghi')).toBe(true);
+      expect(regex.test('1.2.3')).toBe(false); // Requires v prefix
     });
   });
 
@@ -78,7 +145,8 @@ describe('format-matcher', () => {
 
     it('should detect regex patterns with special characters', () => {
       expect(isRegexPattern('\\d+\\.\\d+')).toBe(true);
-      expect(isRegexPattern('.*')).toBe(true);
+      // Note: .* is not detected as regex since . is not a special char and * is used for wildcards
+      // Use ^.*$ or /.*/ if you want regex matching
       expect(isRegexPattern('[0-9]+')).toBe(true);
       expect(isRegexPattern('(\\d+)')).toBe(true);
     });
@@ -96,6 +164,51 @@ describe('format-matcher', () => {
   });
 
   describe('matchTagFormat', () => {
+    describe('wildcard patterns', () => {
+      it('should match * pattern with full match', () => {
+        expect(matchTagFormat('latest', '*')).toBe(true);
+        expect(matchTagFormat('edge', '*')).toBe(true);
+        expect(matchTagFormat('dev', '*')).toBe(true);
+        expect(matchTagFormat('3.23', '*')).toBe(false); // Contains dot
+      });
+
+      it('should match *.* pattern with full match', () => {
+        expect(matchTagFormat('3.23', '*.*')).toBe(true);
+        expect(matchTagFormat('abc.def', '*.*')).toBe(true);
+        expect(matchTagFormat('1.2', '*.*')).toBe(true);
+      });
+
+      it('should match *.* pattern with prefix match', () => {
+        expect(matchTagFormat('3.23-bae0df8a-ls3', '*.*')).toBe(true);
+        expect(matchTagFormat('abc.def-123', '*.*')).toBe(true);
+        expect(matchTagFormat('1.2.3', '*.*')).toBe(false); // 1.2.3 doesn't match *.* (has 3 parts)
+      });
+
+      it('should match *.*.* pattern with full match', () => {
+        expect(matchTagFormat('1.2.3', '*.*.*')).toBe(true);
+        expect(matchTagFormat('abc.def.ghi', '*.*.*')).toBe(true);
+      });
+
+      it('should match *.*.* pattern with prefix match', () => {
+        expect(matchTagFormat('1.2.3-alpha', '*.*.*')).toBe(true);
+        expect(matchTagFormat('abc.def.ghi-123', '*.*.*')).toBe(true);
+      });
+
+      it('should match v*.*.* pattern', () => {
+        expect(matchTagFormat('v1.2.3', 'v*.*.*')).toBe(true);
+        expect(matchTagFormat('vabc.def.ghi', 'v*.*.*')).toBe(true);
+        expect(matchTagFormat('1.2.3', 'v*.*.*')).toBe(false); // No v prefix
+      });
+
+      it('should not match tags that do not match pattern', () => {
+        // Tags without dots don't match *.*
+        expect(matchTagFormat('edge-e9613ab3-ls213', '*.*')).toBe(false);
+        expect(matchTagFormat('latest', '*.*')).toBe(false);
+        // Tags with dots do match (prefix extraction handles segment matching)
+        expect(matchTagFormat('3.23-bae0df8a-ls3', '*.*')).toBe(true); // Has dot, matches via prefix
+      });
+    });
+
     describe('simple patterns', () => {
       it('should match X.X pattern with full match', () => {
         expect(matchTagFormat('3.23', 'X.X')).toBe(true);
@@ -209,6 +322,38 @@ describe('format-matcher', () => {
       expect(filtered).toEqual([
         '3.23-bae0df8a-ls3',
         '3.22-c210e9fe-ls18',
+      ]);
+    });
+
+    it('should filter tags by wildcard pattern', () => {
+      const tags = [
+        '3.23-bae0df8a-ls3', // Has dot, matches *.* (prefix: 3.23)
+        '3.22-c210e9fe-ls18', // Has dot, matches *.* (prefix: 3.22)
+        'edge-e9613ab3-ls213', // No dots, won't match *.*
+        'abc.def', // Has dot, matches *.*
+        'latest', // No dots, won't match *.*
+      ];
+      const filtered = filterTagsByFormat(tags, '*.*');
+      expect(filtered).toEqual([
+        '3.23-bae0df8a-ls3',
+        '3.22-c210e9fe-ls18',
+        'abc.def',
+      ]);
+    });
+
+    it('should filter tags by * pattern', () => {
+      const tags = [
+        'latest',
+        'edge',
+        'dev',
+        '3.23',
+        'abc.def',
+      ];
+      const filtered = filterTagsByFormat(tags, '*');
+      expect(filtered).toEqual([
+        'latest',
+        'edge',
+        'dev',
       ]);
     });
 
