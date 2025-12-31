@@ -27531,6 +27531,74 @@ function filterTagsByFormat(tagNames, format) {
 
 /***/ }),
 
+/***/ 9594:
+/***/ ((__unused_webpack_module, exports) => {
+
+"use strict";
+
+/**
+ * Format parser utilities for tag_format input
+ * Supports single strings, JSON arrays, and comma-separated values
+ */
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.parseTagFormat = parseTagFormat;
+/**
+ * Parse tag_format input into an array of format patterns
+ * Supports:
+ * - Single string: "X.X" → ["X.X"]
+ * - JSON array string: '["*.*.*", "*.*"]' → ["*.*.*", "*.*"]
+ * - Comma-separated: "*.*.*,*.*" → ["*.*.*", "*.*"]
+ * - Empty/undefined → undefined (backward compatible)
+ *
+ * @param input - The tag_format input string
+ * @returns Array of format patterns, or undefined if input is empty
+ */
+function parseTagFormat(input) {
+    if (!input || input.trim() === '') {
+        return undefined;
+    }
+    const trimmed = input.trim();
+    // Try to parse as JSON array first (handles YAML arrays converted to JSON strings)
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+                // Validate all elements are strings
+                const patterns = parsed
+                    .map((item) => (typeof item === 'string' ? item.trim() : String(item).trim()))
+                    .filter((item) => item.length > 0);
+                if (patterns.length === 0) {
+                    throw new Error('JSON array must contain at least one non-empty pattern');
+                }
+                return patterns;
+            }
+            throw new Error('JSON input must be an array');
+        }
+        catch (error) {
+            if (error instanceof SyntaxError) {
+                throw new Error(`Invalid JSON array format for tag_format: ${error.message}. Expected format: '["pattern1", "pattern2"]'`);
+            }
+            throw error;
+        }
+    }
+    // Check if it contains commas (likely comma-separated)
+    if (trimmed.includes(',')) {
+        const patterns = trimmed
+            .split(',')
+            .map((item) => item.trim())
+            .filter((item) => item.length > 0);
+        if (patterns.length === 0) {
+            throw new Error('Comma-separated tag_format must contain at least one non-empty pattern');
+        }
+        return patterns;
+    }
+    // Single string (backward compatible)
+    return [trimmed];
+}
+
+
+/***/ }),
+
 /***/ 7551:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
@@ -28150,6 +28218,7 @@ const gitea_client_1 = __nccwpck_require__(4485);
 const bitbucket_client_1 = __nccwpck_require__(1420);
 const tag_resolver_1 = __nccwpck_require__(7722);
 const types_1 = __nccwpck_require__(8522);
+const format_parser_1 = __nccwpck_require__(9594);
 /**
  * Get tag information based on repository configuration
  */
@@ -28195,7 +28264,8 @@ async function run() {
         // Fallback to GITHUB_TOKEN if custom token is not provided
         const token = core.getInput('token') || process.env.GITHUB_TOKEN;
         const ignoreCertErrors = core.getBooleanInput('ignore_cert_errors');
-        const tagFormat = core.getInput('tag_format') || undefined;
+        const tagFormatInput = core.getInput('tag_format') || undefined;
+        const tagFormat = (0, format_parser_1.parseTagFormat)(tagFormatInput);
         // Warn if certificate errors are being ignored (security risk)
         if (ignoreCertErrors) {
             core.warning('SSL certificate validation is disabled. This is a security risk and should only be used with self-hosted instances with self-signed certificates.');
@@ -28704,15 +28774,58 @@ async function getAllTagNamesFromRepo(config) {
     throw new Error('Invalid repository configuration');
 }
 /**
+ * Filter tags with fallback pattern support
+ * Tries each pattern in order until one matches tags
+ *
+ * @param tagNames - Array of tag names to filter
+ * @param patterns - Array of format patterns to try in order
+ * @param context - Context string for logging (e.g., "GitHub optimized path")
+ * @returns Array of tag names that match the first successful pattern
+ * @throws Error if no patterns match any tags
+ */
+async function filterTagsWithFallback(tagNames, patterns, context) {
+    const attemptedPatterns = [];
+    for (let i = 0; i < patterns.length; i++) {
+        const pattern = patterns[i];
+        const filtered = (0, format_matcher_1.filterTagsByFormat)(tagNames, pattern);
+        core.info(`Format filtering (${context}): Pattern "${pattern}" matches ${filtered.length} of ${tagNames.length} tags`);
+        if (filtered.length > 0) {
+            if (i > 0) {
+                core.info(`Using fallback pattern "${pattern}" (pattern ${i + 1} of ${patterns.length}) - previous patterns matched no tags`);
+            }
+            return filtered;
+        }
+        attemptedPatterns.push(pattern);
+        if (i < patterns.length - 1) {
+            core.info(`Pattern "${pattern}" matched no tags, trying next pattern...`);
+        }
+    }
+    // All patterns exhausted, none matched
+    const patternsList = attemptedPatterns.map((p) => `"${p}"`).join(', ');
+    throw new Error(`No tags found matching any format pattern: [${patternsList}]. Tried ${attemptedPatterns.length} pattern(s) in fallback order.`);
+}
+/**
  * Resolve "latest" tag name
  * Strategy: Try semver first (using fast name-only fetch for GitHub), then fallback to date
  * If tagFormat is provided, filter tags by format before sorting
+ * If tagFormat is an array, try each pattern in order as fallbacks
  */
 async function resolveLatestTag(config, tagFormat) {
     core.info('Resolving latest tag...');
+    // Normalize tagFormat to array for consistent handling
+    const formatPatterns = Array.isArray(tagFormat)
+        ? tagFormat
+        : tagFormat
+            ? [tagFormat]
+            : undefined;
     // If tagFormat is provided, log it
-    if (tagFormat) {
-        core.info(`Filtering tags by format: ${tagFormat}`);
+    if (formatPatterns) {
+        if (formatPatterns.length === 1) {
+            core.info(`Filtering tags by format: ${formatPatterns[0]}`);
+        }
+        else {
+            core.info(`Filtering tags by format patterns (fallback order): ${formatPatterns.join(', ')}`);
+        }
     }
     // Optimization: For GitHub, first try to get just tag names (fast, no dates)
     // and check if we can resolve using semver without fetching dates
@@ -28722,14 +28835,10 @@ async function resolveLatestTag(config, tagFormat) {
             if (tagNames.length === 0) {
                 throw new Error('No tags found in repository');
             }
-            // Apply format filtering if provided
+            // Apply format filtering if provided (with fallback support)
             let filteredTagNames = tagNames;
-            if (tagFormat) {
-                filteredTagNames = (0, format_matcher_1.filterTagsByFormat)(tagNames, tagFormat);
-                core.info(`Format filtering: ${filteredTagNames.length} of ${tagNames.length} tags match format "${tagFormat}"`);
-                if (filteredTagNames.length === 0) {
-                    throw new Error(`No tags found matching format pattern "${tagFormat}"`);
-                }
+            if (formatPatterns) {
+                filteredTagNames = await filterTagsWithFallback(tagNames, formatPatterns, 'GitHub optimized path');
             }
             // Filter semver tags from the (potentially format-filtered) tags
             const semverTags = filteredTagNames.filter((tagName) => (0, semver_1.isSemver)(tagName));
@@ -28746,8 +28855,8 @@ async function resolveLatestTag(config, tagFormat) {
         }
         catch (error) {
             // If optimized path fails, fall through to full tag fetch
-            if (error instanceof Error && error.message.includes('No tags found matching format')) {
-                // Re-throw format matching errors
+            if (error instanceof Error && error.message.includes('No tags found matching format pattern')) {
+                // Re-throw format matching errors (after all fallbacks exhausted)
                 throw error;
             }
             core.warning(`Optimized tag name fetch failed, using full tag fetch: ${error instanceof Error ? error.message : 'unknown error'}`);
@@ -28758,14 +28867,11 @@ async function resolveLatestTag(config, tagFormat) {
     if (allTags.length === 0) {
         throw new Error('No tags found in repository');
     }
-    // Apply format filtering if provided
+    // Apply format filtering if provided (with fallback support)
     let filteredTags = allTags;
-    if (tagFormat) {
-        const filteredTagNames = (0, format_matcher_1.filterTagsByFormat)(allTags.map((tag) => tag.name), tagFormat);
-        core.info(`Format filtering: ${filteredTagNames.length} of ${allTags.length} tags match format "${tagFormat}"`);
-        if (filteredTagNames.length === 0) {
-            throw new Error(`No tags found matching format pattern "${tagFormat}"`);
-        }
+    if (formatPatterns) {
+        const allTagNames = allTags.map((tag) => tag.name);
+        const filteredTagNames = await filterTagsWithFallback(allTagNames, formatPatterns, 'full tag fetch path');
         // Filter tags to only those matching the format
         filteredTags = allTags.filter((tag) => filteredTagNames.includes(tag.name));
     }

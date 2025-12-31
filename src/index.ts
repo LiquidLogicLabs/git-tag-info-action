@@ -7,6 +7,7 @@ import { getTagInfo as getGiteaTagInfo } from './gitea-client';
 import { getTagInfo as getBitbucketTagInfo } from './bitbucket-client';
 import { resolveLatestTag } from './tag-resolver';
 import { Platform } from './types';
+import { parseTagFormat } from './format-parser';
 
 /**
  * Get tag information based on repository configuration
@@ -79,7 +80,8 @@ async function run(): Promise<void> {
     // Fallback to GITHUB_TOKEN if custom token is not provided
     const token = core.getInput('token') || process.env.GITHUB_TOKEN;
     const ignoreCertErrors = core.getBooleanInput('ignore_cert_errors');
-    const tagFormat = core.getInput('tag_format') || undefined;
+    const tagFormatInput = core.getInput('tag_format') || undefined;
+    const tagFormat = parseTagFormat(tagFormatInput);
 
     // Warn if certificate errors are being ignored (security risk)
     if (ignoreCertErrors) {

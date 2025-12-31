@@ -204,6 +204,54 @@ Filter tags by format pattern when resolving "latest". This is useful when repos
     tag_format: '^v\\d+\\.\\d+\\.\\d+$'  # Matches v1.2.3, v10.5.0, etc.
 ```
 
+### Array Support with Fallback Patterns
+
+You can provide multiple format patterns as fallbacks. Patterns are tried in order - if the first pattern matches no tags, the second pattern is tried, and so on. This is useful when repositories have tags in different formats.
+
+**Supported formats:**
+
+- **JSON array string**: `'["*.*.*", "*.*"]'` (from YAML arrays)
+- **Comma-separated**: `"*.*.*,*.*"` (simpler syntax)
+
+**Examples:**
+
+```yaml
+# Try 3-segment tags first (e.g., 3.19.5), fallback to 2-segment (e.g., 3.19)
+- uses: your-org/git-tag-info-action@v1
+  with:
+    tag_name: latest
+    repository: https://github.com/owner/repo
+    tag_format: '["*.*.*", "*.*"]'  # JSON array string format
+
+# Same as above, using comma-separated format
+- uses: your-org/git-tag-info-action@v1
+  with:
+    tag_name: latest
+    repository: https://github.com/owner/repo
+    tag_format: "*.*.*,*.*"  # Comma-separated format
+
+# Try numeric 3-segment, then 2-segment, then any 2-segment
+- uses: your-org/git-tag-info-action@v1
+  with:
+    tag_name: latest
+    repository: https://github.com/owner/repo
+    tag_format: '["X.X.X", "X.X", "*.*"]'
+
+# Try v-prefixed tags, then any tags
+- uses: your-org/git-tag-info-action@v1
+  with:
+    tag_name: latest
+    repository: https://github.com/owner/repo
+    tag_format: '["v*.*.*", "*.*.*", "*.*"]'
+```
+
+**Fallback Behavior:**
+
+- Patterns are tried in the order specified
+- First pattern that matches at least one tag is used
+- If a pattern matches tags, subsequent patterns are not tried
+- If no patterns match any tags, the action fails with a clear error message listing all attempted patterns
+
 ### Version Pinning
 
 This action supports flexible version pinning to balance stability and updates:
@@ -259,7 +307,7 @@ This action supports flexible version pinning to balance stability and updates:
 | `base_url` | Custom base URL for self-hosted instances (e.g., https://gitea.example.com) | No | - |
 | `token` | Custom Personal Access Token (works for all platforms). If not provided, automatically falls back to `GITHUB_TOKEN` environment variable when available (e.g., in GitHub Actions) | No | - |
 | `ignore_cert_errors` | Ignore SSL certificate errors (useful for self-hosted instances with self-signed certificates). **Warning**: This is a security risk and should only be used with trusted self-hosted instances | No | `false` |
-| `tag_format` | Format pattern to filter tags when resolving "latest" (e.g., `"X.X"` or `"X.X.X"` for numeric patterns, or regex for advanced patterns). Only tags matching this format will be considered when resolving "latest" | No | - |
+| `tag_format` | Format pattern(s) to filter tags when resolving "latest". Supports single pattern (e.g., `"X.X"`), JSON array string (e.g., `'["*.*.*", "*.*"]'`), or comma-separated values (e.g., `"*.*.*,*.*"`). Patterns are tried in order as fallbacks - if first pattern matches no tags, second pattern is tried, etc. Only tags matching the first successful format pattern will be considered when resolving "latest" | No | - |
 
 ## Outputs
 
@@ -405,12 +453,15 @@ jobs:
 
 When `tag_name` is set to `"latest"`, the action uses the following strategy:
 
-1. **Format Filtering** (if `tag_format` is provided): Filter tags to only those matching the specified format pattern
+1. **Format Filtering** (if `tag_format` is provided): Filter tags to only those matching the specified format pattern(s)
+   - If `tag_format` is an array, patterns are tried in order as fallbacks
+   - First pattern that matches at least one tag is used
+   - If no patterns match any tags, the action fails with a clear error message
 2. **Semver First**: If semantic version tags exist (e.g., v1.2.3, 1.0.0), it selects the highest version
 3. **Date Fallback**: If no semver tags exist, it selects the most recent tag by creation date
 4. **Alphabetical Fallback**: If no date information is available, it uses alphabetical order
 
-**Note**: Format filtering happens before sorting, so only tags matching the format are considered. If no tags match the format, the action will fail with a clear error message.
+**Note**: Format filtering happens before sorting, so only tags matching the format are considered. If `tag_format` is an array and no patterns match any tags, the action will fail with a clear error message listing all attempted patterns.
 
 ## Repository Detection
 

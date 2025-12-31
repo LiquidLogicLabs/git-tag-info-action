@@ -238,8 +238,16 @@ describe('tag-resolver', () => {
           'dev',
         ]);
 
+        // Mock getAllTags to return same tags (for fallback path)
+        (githubClient.getAllTags as jest.Mock).mockResolvedValue([
+          { name: 'edge-e9613ab3-ls213', date: '2024-01-03' },
+          { name: 'latest', date: '2024-01-02' },
+          { name: 'dev', date: '2024-01-01' },
+        ]);
+
+        // X.X requires a dot, these tags have no dots, so should fail
         await expect(resolveLatestTag(config, 'X.X')).rejects.toThrow(
-          'No tags found matching format pattern'
+          'No tags found matching any format pattern'
         );
       });
 
@@ -323,6 +331,171 @@ describe('tag-resolver', () => {
 
         const latest = await resolveLatestTag(config, 'X.X');
         // Should return highest among X.X tags, not highest semver overall
+        expect(latest).toBe('3.23-bae0df8a-ls3');
+      });
+    });
+
+    describe('array format with fallback patterns', () => {
+      it('should use first pattern if it matches tags', async () => {
+        const config: RepoConfig = {
+          type: 'remote',
+          platform: Platform.GITHUB,
+          owner: 'owner',
+          repo: 'repo',
+        };
+
+        (githubClient.getAllTagNames as jest.Mock).mockResolvedValue([
+          '3.19.5',
+          '3.19',
+          '3.18.2',
+          '3.18',
+        ]);
+
+        (githubClient.getAllTags as jest.Mock).mockResolvedValue([
+          { name: '3.19.5', date: '2024-01-03' },
+          { name: '3.19', date: '2024-01-02' },
+          { name: '3.18.2', date: '2024-01-01' },
+          { name: '3.18', date: '2024-01-01' },
+        ]);
+
+        // First pattern *.*.* matches, so it should be used (not fallback to *.*)
+        const latest = await resolveLatestTag(config, ['*.*.*', '*.*']);
+        expect(latest).toBe('3.19.5');
+      });
+
+      it('should fallback to second pattern if first matches no tags', async () => {
+        const config: RepoConfig = {
+          type: 'remote',
+          platform: Platform.GITHUB,
+          owner: 'owner',
+          repo: 'repo',
+        };
+
+        (githubClient.getAllTagNames as jest.Mock).mockResolvedValue([
+          '3.19',
+          '3.18',
+          'edge-e9613ab3-ls213',
+        ]);
+
+        (githubClient.getAllTags as jest.Mock).mockResolvedValue([
+          { name: '3.19', date: '2024-01-02' },
+          { name: '3.18', date: '2024-01-01' },
+          { name: 'edge-e9613ab3-ls213', date: '2024-01-03' },
+        ]);
+
+        // First pattern *.*.* matches nothing, should fallback to *.*
+        const latest = await resolveLatestTag(config, ['*.*.*', '*.*']);
+        expect(latest).toBe('3.19');
+      });
+
+      it('should fallback through multiple patterns', async () => {
+        const config: RepoConfig = {
+          type: 'remote',
+          platform: Platform.GITHUB,
+          owner: 'owner',
+          repo: 'repo',
+        };
+
+        (githubClient.getAllTagNames as jest.Mock).mockResolvedValue([
+          'latest',
+          'edge',
+          'dev',
+        ]);
+
+        (githubClient.getAllTags as jest.Mock).mockResolvedValue([
+          { name: 'latest', date: '2024-01-03' },
+          { name: 'edge', date: '2024-01-02' },
+          { name: 'dev', date: '2024-01-01' },
+        ]);
+
+        // First two patterns match nothing, should fallback to *
+        const latest = await resolveLatestTag(config, ['*.*.*', '*.*', '*']);
+        expect(latest).toBe('latest');
+      });
+
+      it('should throw error if no patterns match', async () => {
+        const config: RepoConfig = {
+          type: 'remote',
+          platform: Platform.GITHUB,
+          owner: 'owner',
+          repo: 'repo',
+        };
+
+        (githubClient.getAllTagNames as jest.Mock).mockResolvedValue([
+          'edge-e9613ab3-ls213',
+          'latest',
+          'dev',
+        ]);
+
+        (githubClient.getAllTags as jest.Mock).mockResolvedValue([
+          { name: 'edge-e9613ab3-ls213', date: '2024-01-03' },
+          { name: 'latest', date: '2024-01-02' },
+          { name: 'dev', date: '2024-01-01' },
+        ]);
+
+        // None of the patterns match (all require dots)
+        await expect(resolveLatestTag(config, ['*.*.*', '*.*'])).rejects.toThrow(
+          'No tags found matching any format pattern'
+        );
+      });
+
+      it('should work with array format on local repositories', async () => {
+        const config: RepoConfig = {
+          type: 'local',
+          path: '/path/to/repo',
+        };
+
+        (gitClient.getAllTags as jest.Mock).mockReturnValue([
+          '3.19',
+          '3.18',
+          'edge-e9613ab3-ls213',
+        ]);
+
+        const latest = await resolveLatestTag(config, ['*.*.*', '*.*']);
+        expect(latest).toBe('3.19');
+      });
+
+      it('should work with array format on Gitea repositories', async () => {
+        const config: RepoConfig = {
+          type: 'remote',
+          platform: Platform.GITEA,
+          owner: 'owner',
+          repo: 'repo',
+          baseUrl: 'https://gitea.example.com',
+        };
+
+        (giteaClient.getAllTags as jest.Mock).mockResolvedValue([
+          { name: '3.19', date: '2024-01-02' },
+          { name: '3.18', date: '2024-01-01' },
+          { name: 'edge-e9613ab3-ls213', date: '2024-01-03' },
+        ]);
+
+        const latest = await resolveLatestTag(config, ['*.*.*', '*.*']);
+        expect(latest).toBe('3.19');
+      });
+
+      it('should preserve backward compatibility with single string', async () => {
+        const config: RepoConfig = {
+          type: 'remote',
+          platform: Platform.GITHUB,
+          owner: 'owner',
+          repo: 'repo',
+        };
+
+        (githubClient.getAllTagNames as jest.Mock).mockResolvedValue([
+          '3.23-bae0df8a-ls3',
+          '3.22-c210e9fe-ls18',
+          'edge-e9613ab3-ls213',
+        ]);
+
+        (githubClient.getAllTags as jest.Mock).mockResolvedValue([
+          { name: '3.23-bae0df8a-ls3', date: '2024-01-03' },
+          { name: '3.22-c210e9fe-ls18', date: '2024-01-02' },
+          { name: 'edge-e9613ab3-ls213', date: '2024-01-04' },
+        ]);
+
+        // Single string should work as before
+        const latest = await resolveLatestTag(config, 'X.X');
         expect(latest).toBe('3.23-bae0df8a-ls3');
       });
     });
