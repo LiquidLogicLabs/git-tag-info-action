@@ -184,6 +184,18 @@ describe('format-matcher', () => {
         expect(matchTagFormat('1.2.3', '*.*')).toBe(false); // 1.2.3 doesn't match *.* (has 3 parts)
       });
 
+      it('should prioritize prefix matching for wildcard patterns (fix for tags with suffixes)', () => {
+        // This test verifies the fix where wildcard patterns prioritize prefix matching
+        // over full matching. Tags like "3.23-bae0df8a-ls3" should match *.* by
+        // matching the prefix "3.23", not by incorrectly matching the full tag.
+        expect(matchTagFormat('3.23-bae0df8a-ls3', '*.*')).toBe(true);
+        expect(matchTagFormat('3.22-c210e9fe-ls18', '*.*')).toBe(true);
+        expect(matchTagFormat('3.21-633fbea2-ls27', '*.*')).toBe(true);
+        // Verify that the prefix extraction works correctly
+        expect(matchTagFormat('abc.def-xyz-123', '*.*')).toBe(true);
+        expect(matchTagFormat('v1.2-alpha', 'v*.*')).toBe(true);
+      });
+
       it('should match *.*.* pattern with full match', () => {
         expect(matchTagFormat('1.2.3', '*.*.*')).toBe(true);
         expect(matchTagFormat('abc.def.ghi', '*.*.*')).toBe(true);

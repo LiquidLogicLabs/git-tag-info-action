@@ -27502,15 +27502,29 @@ function matchTagFormat(tagName, format) {
         // Treat as literal string (exact match)
         return tagName === format;
     }
-    // Try full match first
-    if (regex.test(tagName)) {
-        return true;
+    // For wildcard patterns, try prefix match first (more reliable for tags with suffixes)
+    // For other patterns, try full match first
+    if (isWildcard) {
+        // Try prefix match first for wildcard patterns
+        const prefix = extractWildcardPrefix(tagName);
+        if (prefix && regex.test(prefix)) {
+            return true;
+        }
+        // If prefix match fails, try full match
+        if (regex.test(tagName)) {
+            return true;
+        }
     }
-    // If full match fails, try prefix match
-    // Use appropriate prefix extraction based on pattern type
-    const prefix = isWildcard ? extractWildcardPrefix(tagName) : extractNumericPrefix(tagName);
-    if (prefix && regex.test(prefix)) {
-        return true;
+    else {
+        // Try full match first for non-wildcard patterns
+        if (regex.test(tagName)) {
+            return true;
+        }
+        // If full match fails, try prefix match
+        const prefix = extractNumericPrefix(tagName);
+        if (prefix && regex.test(prefix)) {
+            return true;
+        }
     }
     return false;
 }
