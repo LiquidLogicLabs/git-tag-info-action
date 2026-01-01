@@ -105,23 +105,23 @@ jobs:
 
   # Action test workflows - comprehensive action testing
   test-local-repo:
-    uses: ./.github/workflows/action-tests/local-repo-test.yml
+    uses: ./.github/workflows/action-test-local-repo.yml
 
   test-github-url:
-    uses: ./.github/workflows/action-tests/github-url-test.yml
+    uses: ./.github/workflows/action-test-github-url.yml
 
   test-github-separate-inputs:
-    uses: ./.github/workflows/action-tests/github-separate-inputs-test.yml
+    uses: ./.github/workflows/action-test-github-separate-inputs.yml
 
   test-latest-tag:
-    uses: ./.github/workflows/action-tests/latest-tag-test.yml
+    uses: ./.github/workflows/action-test-latest-tag.yml
 
   test-tag-format:
-    uses: ./.github/workflows/action-tests/tag-format-test.yml
+    uses: ./.github/workflows/action-test-tag-format.yml
 
   test-error-handling:
-    uses: ./.github/workflows/action-tests/error-handling-test.yml
+    uses: ./.github/workflows/action-test-error-handling.yml
 
   test-comprehensive:
-    uses: ./.github/workflows/action-tests/comprehensive-test.yml
+    uses: ./.github/workflows/action-test-comprehensive.yml
 
