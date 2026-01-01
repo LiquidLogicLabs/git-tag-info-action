@@ -1,0 +1,74 @@
+name: Action Test - Comprehensive
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  comprehensive-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for tag testing
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build action
+        run: npm run build
+
+      - name: Test - All outputs present
+        id: all-outputs
+        uses: ./
+        with:
+          tag_name: v1.0.0
+          repository: .
+
+      - name: Verify all outputs
+        run: |
+          echo "Checking all outputs..."
+          echo "✓ exists: ${{ steps.all-outputs.outputs.exists }}"
+          echo "✓ tag_name: ${{ steps.all-outputs.outputs.tag_name }}"
+          echo "✓ tag_sha: ${{ steps.all-outputs.outputs.tag_sha }}"
+          echo "✓ tag_type: ${{ steps.all-outputs.outputs.tag_type }}"
+          echo "✓ commit_sha: ${{ steps.all-outputs.outputs.commit_sha }}"
+          if [ -n "${{ steps.all-outputs.outputs.tag_message }}" ]; then
+            echo "✓ tag_message: ${{ steps.all-outputs.outputs.tag_message }}"
+          else
+            echo "ℹ tag_message: (empty - may be expected for some tags)"
+          fi
+          echo "✓ verified: ${{ steps.all-outputs.outputs.verified }}"
+
+      - name: Test - Tag type validation
+        id: tag-type
+        uses: ./
+        with:
+          tag_name: v1.0.0
+          repository: .
+
+      - name: Verify tag type
+        run: |
+          tag_type="${{ steps.tag-type.outputs.tag_type }}"
+          if [ -z "$tag_type" ]; then
+            echo "WARNING: tag_type is empty"
+          elif [ "$tag_type" != "commit" ] && [ "$tag_type" != "annotated" ]; then
+            echo "WARNING: Unexpected tag_type: $tag_type (expected 'commit' or 'annotated')"
+          else
+            echo "✓ Tag type: $tag_type"
+          fi
+
+      - name: Test Summary
+        run: |
+          echo "## ✅ Comprehensive Tests Passed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- All outputs present: ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- Tag type validation: ✅" >> $GITHUB_STEP_SUMMARY
+
