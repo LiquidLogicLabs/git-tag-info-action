@@ -76,21 +76,21 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ steps.test-default-token.outcome }}" == "success" ]; then
             echo "✅ Default token test: PASSED" >> $GITHUB_STEP_SUMMARY
-            echo "  - Tag: ${{ steps.test-default-token.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "  - Tag: ${{ steps.test-default-token.outputs.name }}" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ Default token test: FAILED (may be rate limited)" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ steps.test-explicit-token.outcome }}" == "success" ]; then
             echo "✅ Explicit token test: PASSED" >> $GITHUB_STEP_SUMMARY
-            echo "  - Tag: ${{ steps.test-explicit-token.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "  - Tag: ${{ steps.test-explicit-token.outputs.name }}" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ Explicit token test: FAILED (may be rate limited)" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ steps.test-custom-token.outcome }}" == "success" ]; then
             echo "✅ Custom token test: PASSED" >> $GITHUB_STEP_SUMMARY
-            echo "  - Tag: ${{ steps.test-custom-token.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "  - Tag: ${{ steps.test-custom-token.outputs.name }}" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ Custom token test: FAILED or not configured" >> $GITHUB_STEP_SUMMARY
             echo "  - To test custom tokens, add CUSTOM_GITHUB_TOKEN to repository secrets" >> $GITHUB_STEP_SUMMARY
@@ -98,7 +98,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ steps.test-self-hosted.outcome }}" == "success" ]; then
             echo "✅ Self-hosted Gitea test: PASSED" >> $GITHUB_STEP_SUMMARY
-            echo "  - Tag: ${{ steps.test-self-hosted.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+            echo "  - Tag: ${{ steps.test-self-hosted.outputs.name }}" >> $GITHUB_STEP_SUMMARY
           else
             echo "⚠️ Self-hosted Gitea test: FAILED (may require network access or certificate issues)" >> $GITHUB_STEP_SUMMARY
           fi

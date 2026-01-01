@@ -38,8 +38,8 @@ jobs:
             echo "ERROR: Expected tag to exist"
             exit 1
           fi
-          if [ -z "${{ steps.github-separate.outputs.tag_name }}" ]; then
-            echo "ERROR: tag_name output is empty"
+          if [ -z "${{ steps.github-separate.outputs.name }}" ]; then
+            echo "ERROR: name output is empty"
             exit 1
           fi
           echo "✓ GitHub separate inputs test passed"

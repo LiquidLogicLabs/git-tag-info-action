@@ -36,14 +36,14 @@ jobs:
         run: |
           echo "Checking all outputs..."
           echo "✓ exists: ${{ steps.all-outputs.outputs.exists }}"
-          echo "✓ tag_name: ${{ steps.all-outputs.outputs.tag_name }}"
-          echo "✓ tag_sha: ${{ steps.all-outputs.outputs.tag_sha }}"
-          echo "✓ tag_type: ${{ steps.all-outputs.outputs.tag_type }}"
+          echo "✓ name: ${{ steps.all-outputs.outputs.name }}"
+          echo "✓ item_sha: ${{ steps.all-outputs.outputs.item_sha }}"
+          echo "✓ item_type: ${{ steps.all-outputs.outputs.item_type }}"
           echo "✓ commit_sha: ${{ steps.all-outputs.outputs.commit_sha }}"
-          if [ -n "${{ steps.all-outputs.outputs.tag_message }}" ]; then
-            echo "✓ tag_message: ${{ steps.all-outputs.outputs.tag_message }}"
+          if [ -n "${{ steps.all-outputs.outputs.details }}" ]; then
+            echo "✓ details: ${{ steps.all-outputs.outputs.details }}"
           else
-            echo "ℹ tag_message: (empty - may be expected for some tags)"
+            echo "ℹ details: (empty - may be expected for some tags)"
           fi
           echo "✓ verified: ${{ steps.all-outputs.outputs.verified }}"
 
@@ -56,13 +56,13 @@ jobs:
 
       - name: Verify tag type
         run: |
-          tag_type="${{ steps.tag-type.outputs.tag_type }}"
-          if [ -z "$tag_type" ]; then
-            echo "WARNING: tag_type is empty"
-          elif [ "$tag_type" != "commit" ] && [ "$tag_type" != "annotated" ]; then
-            echo "WARNING: Unexpected tag_type: $tag_type (expected 'commit' or 'annotated')"
+          item_type="${{ steps.tag-type.outputs.item_type }}"
+          if [ -z "$item_type" ]; then
+            echo "WARNING: item_type is empty"
+          elif [ "$item_type" != "commit" ] && [ "$item_type" != "tag" ] && [ "$item_type" != "release" ]; then
+            echo "WARNING: Unexpected item_type: $item_type (expected 'commit', 'tag', or 'release')"
           else
-            echo "✓ Tag type: $tag_type"
+            echo "✓ Item type: $item_type"
           fi
 
       - name: Test Summary
