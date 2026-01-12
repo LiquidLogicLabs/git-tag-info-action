@@ -42,6 +42,8 @@ jobs:
           test -n "${{ steps.local-tag.outputs.item_sha }}"
           test -n "${{ steps.local-tag.outputs.commit_sha }}"
 
+      # Test: Verify action returns exists=false for non-existent tags
+      # Note: This will show a warning annotation (expected) - the action logs a warning when tag doesn't exist
       - name: Action e2e - Local tag missing
         id: local-tag-missing
         uses: ./
@@ -93,6 +95,9 @@ jobs:
           test "${{ steps.latest-local.outputs.exists }}" = "true"
           test -n "${{ steps.latest-local.outputs.name }}"
 
+      # Test: Verify tag format filtering works
+      # Note: This may show a warning annotation if no tags match the format (expected behavior)
+      # The test uses continue-on-error because format matching is best-effort
       - name: Action e2e - Tag format filter (comma)
         id: tag-format
         uses: ./
@@ -111,6 +116,9 @@ jobs:
             echo "Format test skipped/failed (no matching tags)"
           fi
 
+      # Test: Verify action fails when required tag_name input is missing
+      # Note: This will show an error annotation (expected) - the action correctly fails validation
+      # The test uses continue-on-error because we're testing that the action fails as expected
       - name: Action e2e - Missing tag_name (expects failure)
         id: missing-tag
         uses: ./
