@@ -24,7 +24,7 @@ function createOctokit(token?: string, ignoreCertErrors: boolean = false): Insta
         }
         return false;
       },
-      onSecondaryRateLimit: (retryAfter, options, octokit) => {
+      onSecondaryRateLimit: (retryAfter, options, _octokit) => {
         core.warning(
           `Secondary rate limit detected for request ${options.method} ${options.url}. Retrying after ${retryAfter} seconds...`
         );

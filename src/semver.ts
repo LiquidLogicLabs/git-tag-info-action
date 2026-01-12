@@ -20,7 +20,7 @@ export function parseSemver(tagName: string): SemverParts | null {
 
   // Match semver pattern: major.minor.patch[-prerelease][+build]
   const semverRegex =
-    /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z\-\.]+))?(?:\+([0-9A-Za-z\-\.]+))?$/;
+    /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+([0-9A-Za-z.-]+))?$/;
   const match = cleaned.match(semverRegex);
 
   if (!match) {

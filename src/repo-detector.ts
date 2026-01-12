@@ -20,8 +20,8 @@ function parseGitHubUrl(url: string): { owner: string; repo: string } | null {
   // https://github.com/owner/repo.git
   // git@github.com:owner/repo.git
   const patterns = [
-    /^https?:\/\/github\.com\/([^\/]+)\/([^\/]+?)(?:\.git)?(?:\/.*)?$/,
-    /^git@github\.com:([^\/]+)\/([^\/]+?)(?:\.git)?$/,
+    /^https?:\/\/github\.com\/([^/]+)\/([^/]+?)(?:\.git)?(?:\/.*)?$/,
+    /^git@github\.com:([^/]+)\/([^/]+?)(?:\.git)?$/,
   ];
 
   for (const pattern of patterns) {
@@ -51,7 +51,7 @@ function parseGiteaUrl(
 
   // Extract base URL from the repository URL if not provided
   if (!baseUrl) {
-    const httpsMatch = url.match(/^(https?:\/\/[^\/]+)/);
+    const httpsMatch = url.match(/^(https?:\/\/[^/]+)/);
     const sshMatch = url.match(/^git@([^:]+)/);
     if (httpsMatch) {
       baseUrl = httpsMatch[1];
@@ -70,7 +70,7 @@ function parseGiteaUrl(
   urlToParse = urlToParse.replace(baseUrlWithoutProtocol, '').replace(/^:/, '').replace(/^\//, '');
 
   // Extract owner/repo from path
-  const pathMatch = urlToParse.match(/^([^\/]+)\/([^\/]+?)(?:\.git)?(?:\/.*)?$/);
+  const pathMatch = urlToParse.match(/^([^/]+)\/([^/]+?)(?:\.git)?(?:\/.*)?$/);
   if (pathMatch) {
     return {
       owner: pathMatch[1],
@@ -90,8 +90,8 @@ function parseBitbucketUrl(url: string): { owner: string; repo: string } | null 
   // https://bitbucket.org/owner/repo.git
   // git@bitbucket.org:owner/repo.git
   const patterns = [
-    /^https?:\/\/bitbucket\.org\/([^\/]+)\/([^\/]+?)(?:\.git)?(?:\/.*)?$/,
-    /^git@bitbucket\.org:([^\/]+)\/([^\/]+?)(?:\.git)?$/,
+    /^https?:\/\/bitbucket\.org\/([^/]+)\/([^/]+?)(?:\.git)?(?:\/.*)?$/,
+    /^git@bitbucket\.org:([^/]+)\/([^/]+?)(?:\.git)?$/,
   ];
 
   for (const pattern of patterns) {

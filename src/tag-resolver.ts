@@ -4,8 +4,8 @@ import { getAllTags as getLocalTags } from './git-client';
 import { getAllTags as getGithubTags, getAllTagNames as getGithubTagNames, getAllReleaseNames as getGithubReleaseNames, getAllReleases as getGithubReleases } from './github-client';
 import { getAllTags as getGiteaTags, getAllReleaseNames as getGiteaReleaseNames, getAllReleases as getGiteaReleases } from './gitea-client';
 import { getAllTags as getBitbucketTags, getAllReleaseNames as getBitbucketReleaseNames, getAllReleases as getBitbucketReleases } from './bitbucket-client';
-import { isSemver, sortTagsBySemver, compareSemver } from './semver';
-import { filterTagsByFormat, matchTagFormat } from './format-matcher';
+import { isSemver, sortTagsBySemver } from './semver';
+import { filterTagsByFormat } from './format-matcher';
 
 /**
  * Get all items (tags or releases) from repository based on configuration
