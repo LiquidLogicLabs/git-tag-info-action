@@ -45,10 +45,14 @@ outputs:
     description: 'Item name (tag name for tags/releases)'
   item_sha:
     description: 'Item SHA (tag SHA for tags/releases)'
+  item_sha_short:
+    description: 'Short item SHA (first 7 characters)'
   item_type:
     description: 'Item type (commit/tag/release)'
   commit_sha:
     description: 'Commit SHA'
+  commit_sha_short:
+    description: 'Short commit SHA (first 7 characters)'
   details:
     description: 'Item details (tag message or release body)'
   verified:

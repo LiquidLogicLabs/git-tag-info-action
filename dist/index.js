@@ -28747,6 +28747,7 @@ async function run() {
         const tagFormat = (0, format_parser_1.parseTagFormat)(tagFormatInput);
         const verbose = core.getBooleanInput('verbose');
         const logger = new logger_1.Logger(verbose);
+        const shortSha = (value) => (value ? value.substring(0, 7) : '');
         // Validate tag_type input
         if (tagType !== 'tags' && tagType !== 'release') {
             throw new Error(`Invalid tag_type: ${tagType}. Must be 'tags' or 'release'`);
@@ -28779,8 +28780,10 @@ async function run() {
         core.setOutput('exists', itemInfo.exists.toString());
         core.setOutput('name', itemInfo.name);
         core.setOutput('item_sha', itemInfo.item_sha);
+        core.setOutput('item_sha_short', shortSha(itemInfo.item_sha));
         core.setOutput('item_type', itemInfo.item_type);
         core.setOutput('commit_sha', itemInfo.commit_sha);
+        core.setOutput('commit_sha_short', shortSha(itemInfo.commit_sha));
         core.setOutput('details', itemInfo.details);
         core.setOutput('verified', itemInfo.verified.toString());
         core.setOutput('is_draft', itemInfo.is_draft.toString());

@@ -132,6 +132,7 @@ async function run(): Promise<void> {
     const tagFormat = parseTagFormat(tagFormatInput);
     const verbose = core.getBooleanInput('verbose');
     const logger = new Logger(verbose);
+    const shortSha = (value?: string): string => (value ? value.substring(0, 7) : '');
 
     // Validate tag_type input
     if (tagType !== 'tags' && tagType !== 'release') {
@@ -182,8 +183,10 @@ async function run(): Promise<void> {
     core.setOutput('exists', itemInfo.exists.toString());
     core.setOutput('name', itemInfo.name);
     core.setOutput('item_sha', itemInfo.item_sha);
+    core.setOutput('item_sha_short', shortSha(itemInfo.item_sha));
     core.setOutput('item_type', itemInfo.item_type);
     core.setOutput('commit_sha', itemInfo.commit_sha);
+    core.setOutput('commit_sha_short', shortSha(itemInfo.commit_sha));
     core.setOutput('details', itemInfo.details);
     core.setOutput('verified', itemInfo.verified.toString());
     core.setOutput('is_draft', itemInfo.is_draft.toString());

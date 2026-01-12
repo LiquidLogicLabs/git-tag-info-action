@@ -358,8 +358,10 @@ Query releases from remote repositories. Releases are not supported for local re
 | `exists` | Boolean indicating if item exists |
 | `name` | Item name (tag name for tags/releases) |
 | `item_sha` | Item SHA (tag SHA for tags/releases) |
+| `item_sha_short` | Short item SHA (first 7 characters) |
 | `item_type` | Item type (commit/tag/release) |
 | `commit_sha` | Commit SHA |
+| `commit_sha_short` | Short commit SHA (first 7 characters) |
 | `details` | Item details (tag message or release body) |
 | `verified` | Whether item is verified (tags only, false for releases) |
 | `is_draft` | Whether release is a draft (releases only, false for tags) |
